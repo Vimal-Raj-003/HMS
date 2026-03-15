@@ -1,0 +1,1414 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   HMS Healthcare Design System
+   Modern UI Component Classes
+   ============================================ */
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-secondary-50 text-secondary-900 antialiased;
+  }
+
+  /* Improve focus visibility for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-primary-100 text-primary-900;
+  }
+}
+
+/* ============================================
+   BUTTON COMPONENTS
+   ============================================ */
+@layer components {
+  /* Base Button */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 
+           text-sm font-medium transition-all duration-200 
+           focus:outline-none focus:ring-2 focus:ring-offset-2 
+           disabled:opacity-50 disabled:cursor-not-allowed 
+           active:scale-[0.98];
+  }
+
+  /* Primary Button - Medical Blue */
+  .btn-primary {
+    @apply btn bg-primary-600 text-white 
+           hover:bg-primary-700 hover:shadow-md
+           focus:ring-primary-500 
+           active:bg-primary-800;
+  }
+
+  /* Secondary Button */
+  .btn-secondary {
+    @apply btn bg-secondary-100 text-secondary-900 
+           hover:bg-secondary-200 hover:shadow-sm
+           focus:ring-secondary-400;
+  }
+
+  /* Outline Button */
+  .btn-outline {
+    @apply btn border border-secondary-300 bg-white text-secondary-700 
+           hover:bg-secondary-50 hover:border-secondary-400
+           focus:ring-primary-500;
+  }
+
+  /* Ghost Button */
+  .btn-ghost {
+    @apply btn bg-transparent text-secondary-600 
+           hover:bg-secondary-100 hover:text-secondary-900
+           focus:ring-secondary-400;
+  }
+
+  /* Danger Button */
+  .btn-danger {
+    @apply btn bg-red-600 text-white 
+           hover:bg-red-700 hover:shadow-md
+           focus:ring-red-500;
+  }
+
+  /* Success Button */
+  .btn-success {
+    @apply btn bg-green-600 text-white 
+           hover:bg-green-700 hover:shadow-md
+           focus:ring-green-500;
+  }
+
+  /* Healthcare Teal Button */
+  .btn-healthcare {
+    @apply btn bg-healthcare-600 text-white 
+           hover:bg-healthcare-700 hover:shadow-md
+           focus:ring-healthcare-500;
+  }
+
+  /* Button Sizes */
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  /* Icon Button */
+  .btn-icon {
+    @apply p-2 rounded-lg text-secondary-500 
+           hover:bg-secondary-100 hover:text-secondary-700
+           transition-colors duration-150;
+  }
+}
+
+/* ============================================
+   INPUT COMPONENTS
+   ============================================ */
+@layer components {
+  /* Base Input */
+  .input {
+    @apply w-full rounded-lg border border-secondary-300 bg-white
+           px-4 py-2.5 text-sm text-secondary-900 placeholder-secondary-400
+           focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none
+           transition-all duration-200;
+  }
+
+  /* Input with Error */
+  .input-error {
+    @apply input border-red-500 
+           focus:border-red-500 focus:ring-red-500/20;
+  }
+
+  /* Input with Success */
+  .input-success {
+    @apply input border-green-500 
+           focus:border-green-500 focus:ring-green-500/20;
+  }
+
+  /* Modern Input - Enhanced styling */
+  .input-modern {
+    @apply w-full rounded-lg border-0 bg-secondary-50
+           px-4 py-3 text-sm text-secondary-900 placeholder-secondary-400
+           ring-1 ring-inset ring-secondary-200
+           hover:ring-secondary-300
+           focus:bg-white focus:ring-2 focus:ring-inset focus:ring-primary-500 focus:outline-none
+           transition-all duration-200;
+  }
+
+  /* Input Label */
+  .label {
+    @apply block text-sm font-medium text-secondary-700 mb-1.5;
+  }
+
+  /* Input Helper Text */
+  .helper-text {
+    @apply mt-1.5 text-xs text-secondary-500;
+  }
+
+  /* Error Text */
+  .error-text {
+    @apply mt-1.5 text-xs text-red-600;
+  }
+
+  /* Textarea */
+  .textarea {
+    @apply input min-h-[100px] resize-y py-3;
+  }
+
+  /* Select */
+  .select {
+    @apply input appearance-none pr-10 
+           bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2364748b%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%111.414%201.414l-4%204a1%201%200%01-1.414%200l-4-4a1%201%200%010-1.414z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] 
+           bg-[length:1.25rem] bg-[right_0.75rem_center] bg-no-repeat;
+  }
+
+  /* Checkbox */
+  .checkbox {
+    @apply w-4 h-4 rounded border-secondary-300 text-primary-600 
+           focus:ring-primary-500 focus:ring-2 focus:ring-offset-0
+           transition-colors duration-150;
+  }
+
+  /* Radio */
+  .radio {
+    @apply w-4 h-4 border-secondary-300 text-primary-600 
+           focus:ring-primary-500 focus:ring-2 focus:ring-offset-0
+           transition-colors duration-150;
+  }
+}
+
+/* ============================================
+   CARD COMPONENTS
+   ============================================ */
+@layer components {
+  /* Base Card */
+  .card {
+    @apply bg-white rounded-xl border border-secondary-200 p-5 
+           shadow-card transition-all duration-200;
+  }
+
+  /* Card with hover effect */
+  .card-interactive {
+    @apply card hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer;
+  }
+
+  /* Card Header */
+  .card-header {
+    @apply text-lg font-semibold text-secondary-900 mb-4;
+  }
+
+  /* Card with no border */
+  .card-borderless {
+    @apply bg-white rounded-xl p-5 shadow-card;
+  }
+
+  /* Stat Card - For dashboard statistics */
+  .stat-card {
+    @apply bg-white rounded-xl border border-secondary-100 p-5 
+           shadow-stat hover:shadow-stat-hover 
+           transition-all duration-200;
+  }
+
+  /* Stat Card Value */
+  .stat-value {
+    @apply text-3xl font-bold text-secondary-900 tracking-tight;
+  }
+
+  /* Stat Card Label */
+  .stat-label {
+    @apply text-sm text-secondary-500 mt-1 font-medium;
+  }
+
+  /* Stat Card Trend - Positive */
+  .stat-trend-up {
+    @apply inline-flex items-center gap-1 text-xs font-medium text-green-600 
+           bg-green-50 px-2 py-0.5 rounded-full;
+  }
+
+  /* Stat Card Trend - Negative */
+  .stat-trend-down {
+    @apply inline-flex items-center gap-1 text-xs font-medium text-red-600 
+           bg-red-50 px-2 py-0.5 rounded-full;
+  }
+
+  /* Card Section Divider */
+  .card-divider {
+    @apply border-t border-secondary-100 my-4;
+  }
+}
+
+/* ============================================
+   BADGE COMPONENTS
+   ============================================ */
+@layer components {
+  /* Base Badge */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 
+           text-xs font-medium transition-colors duration-150;
+  }
+
+  /* Primary Badge */
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-700;
+  }
+
+  /* Secondary Badge */
+  .badge-secondary {
+    @apply badge bg-secondary-100 text-secondary-700;
+  }
+
+  /* Success Badge */
+  .badge-success {
+    @apply badge bg-green-100 text-green-700;
+  }
+
+  /* Warning Badge */
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-700;
+  }
+
+  /* Danger Badge */
+  .badge-danger {
+    @apply badge bg-red-100 text-red-700;
+  }
+
+  /* Info Badge */
+  .badge-info {
+    @apply badge bg-blue-100 text-blue-700;
+  }
+
+  /* Healthcare Badge */
+  .badge-healthcare {
+    @apply badge bg-healthcare-100 text-healthcare-700;
+  }
+
+  /* Badge with dot indicator */
+  .badge-dot {
+    @apply badge;
+  }
+
+  .badge-dot::before {
+    content: '';
+    @apply w-1.5 h-1.5 rounded-full bg-current mr-1;
+  }
+}
+
+/* ============================================
+   TABLE COMPONENTS
+   ============================================ */
+@layer components {
+  /* Table Container */
+  .table-container {
+    @apply overflow-hidden rounded-xl border border-secondary-200 bg-white;
+  }
+
+  /* Base Table */
+  .table {
+    @apply min-w-full divide-y divide-secondary-100;
+  }
+
+  /* Table Header */
+  .table th {
+    @apply bg-secondary-50/80 backdrop-blur-sm 
+           px-5 py-3.5 text-left text-xs font-semibold text-secondary-500 
+           uppercase tracking-wider;
+  }
+
+  /* Sticky Table Header */
+  .table-sticky th {
+    @apply sticky top-0 z-10;
+  }
+
+  /* Table Body Cell */
+  .table td {
+    @apply px-5 py-4 text-sm text-secondary-900;
+  }
+
+  /* Table Row */
+  .table tbody tr {
+    @apply border-b border-secondary-50 
+           hover:bg-primary-50/50 
+           transition-colors duration-150;
+  }
+
+  .table tbody tr:last-child {
+    @apply border-b-0;
+  }
+
+  /* Modern Table - Enhanced styling */
+  .table-modern {
+    @apply min-w-full;
+  }
+
+  .table-modern thead {
+    @apply bg-gradient-to-r from-secondary-50 to-secondary-100/50;
+  }
+
+  .table-modern th {
+    @apply px-6 py-4 text-left text-xs font-semibold text-secondary-600 
+           uppercase tracking-wider border-b border-secondary-200;
+  }
+
+  .table-modern td {
+    @apply px-6 py-4 text-sm text-secondary-900;
+  }
+
+  .table-modern tbody tr {
+    @apply hover:bg-healthcare-50/30 transition-colors duration-150;
+  }
+
+  /* Striped Table */
+  .table-striped tbody tr:nth-child(even) {
+    @apply bg-secondary-50/50;
+  }
+}
+
+/* ============================================
+   SIDEBAR COMPONENTS
+   ============================================ */
+@layer components {
+  /* Sidebar Container */
+  .sidebar {
+    @apply fixed inset-y-0 left-0 z-50 w-64 
+           bg-white border-r border-secondary-200 
+           flex flex-col shadow-sidebar
+           transform transition-transform duration-300 ease-out;
+  }
+
+  /* Sidebar Logo Area */
+  .sidebar-logo {
+    @apply flex items-center justify-between h-16 px-4 
+           border-b border-secondary-200 shrink-0;
+  }
+
+  /* Sidebar Navigation */
+  .sidebar-nav {
+    @apply flex-1 px-3 py-4 space-y-1 overflow-y-auto;
+  }
+
+  /* Sidebar Link */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg 
+           text-sm font-medium text-secondary-600 
+           hover:bg-secondary-100 hover:text-secondary-900
+           transition-all duration-150;
+  }
+
+  /* Sidebar Link - Active State */
+  .sidebar-link-active {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg 
+           text-sm font-medium 
+           bg-primary-50 text-primary-700 
+           border-l-[3px] border-primary-600 -ml-[3px] pl-[calc(0.75rem+3px)]
+           hover:bg-primary-50 hover:text-primary-700;
+  }
+
+  /* Sidebar Link with Icon */
+  .sidebar-link-icon {
+    @apply w-5 h-5 shrink-0;
+  }
+
+  /* Sidebar Section Header */
+  .sidebar-section-header {
+    @apply px-3 py-2 text-xs font-semibold text-secondary-400 uppercase tracking-wider;
+  }
+
+  /* Sidebar Footer */
+  .sidebar-footer {
+    @apply border-t border-secondary-200 p-4 shrink-0;
+  }
+}
+
+/* ============================================
+   HEADER COMPONENTS
+   ============================================ */
+@layer components {
+  /* Header Container */
+  .header {
+    @apply sticky top-0 z-30 h-16 
+           flex items-center justify-between
+           border-b border-secondary-200 bg-white/80 backdrop-blur-md 
+           px-4 sm:px-6;
+  }
+
+  /* Search Bar */
+  .search-bar {
+    @apply relative w-full max-w-md;
+  }
+
+  .search-bar-input {
+    @apply w-full pl-10 pr-4 py-2.5 
+           bg-secondary-50 border border-secondary-200 rounded-lg
+           text-sm text-secondary-900 placeholder-secondary-400
+           focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none
+           transition-all duration-200;
+  }
+
+  .search-bar-icon {
+    @apply absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400;
+  }
+
+  /* Header Actions */
+  .header-actions {
+    @apply flex items-center gap-2;
+  }
+}
+
+/* ============================================
+   DROPDOWN COMPONENTS
+   ============================================ */
+@layer components {
+  /* Dropdown Container */
+  .dropdown {
+    @apply absolute right-0 mt-2 w-48 
+           bg-white rounded-xl shadow-dropdown ring-1 ring-secondary-200 
+           z-50 overflow-hidden
+           animate-scale-in;
+  }
+
+  /* Dropdown - Wide variant */
+  .dropdown-wide {
+    @apply dropdown w-64;
+  }
+
+  /* Dropdown Item */
+  .dropdown-item {
+    @apply flex items-center gap-3 px-4 py-2.5 
+           text-sm text-secondary-700 
+           hover:bg-secondary-50 
+           transition-colors duration-150
+           first:rounded-t-xl last:rounded-b-xl;
+  }
+
+  /* Dropdown Item - Active */
+  .dropdown-item-active {
+    @apply dropdown-item bg-primary-50 text-primary-700;
+  }
+
+  /* Dropdown Divider */
+  .dropdown-divider {
+    @apply border-t border-secondary-100 my-1;
+  }
+
+  /* Dropdown Header */
+  .dropdown-header {
+    @apply px-4 py-2 text-xs font-semibold text-secondary-400 uppercase tracking-wider;
+  }
+}
+
+/* ============================================
+   MODAL COMPONENTS
+   ============================================ */
+@layer components {
+  /* Modal Backdrop */
+  .modal-backdrop {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-50 
+           animate-fade-in;
+  }
+
+  /* Modal Container */
+  .modal {
+    @apply fixed inset-0 z-50 
+           flex items-center justify-center p-4;
+  }
+
+  /* Modal Content */
+  .modal-content {
+    @apply bg-white rounded-2xl shadow-modal 
+           w-full max-w-lg max-h-[90vh] overflow-hidden
+           animate-scale-in;
+  }
+
+  /* Modal Header */
+  .modal-header {
+    @apply flex items-center justify-between 
+           px-6 py-4 border-b border-secondary-200;
+  }
+
+  /* Modal Title */
+  .modal-title {
+    @apply text-lg font-semibold text-secondary-900;
+  }
+
+  /* Modal Body */
+  .modal-body {
+    @apply px-6 py-4 overflow-y-auto;
+  }
+
+  /* Modal Footer */
+  .modal-footer {
+    @apply flex items-center justify-end gap-3 
+           px-6 py-4 border-t border-secondary-200 bg-secondary-50;
+  }
+}
+
+/* ============================================
+   NOTIFICATION COMPONENTS
+   ============================================ */
+@layer components {
+  /* Notification Badge */
+  .notification-badge {
+    @apply absolute -top-1 -right-1 
+           inline-flex items-center justify-center 
+           w-5 h-5 text-xs font-bold text-white 
+           bg-red-500 rounded-full 
+           ring-2 ring-white;
+  }
+
+  /* Notification Panel */
+  .notification-panel {
+    @apply absolute right-0 mt-2 w-80 sm:w-96 
+           bg-white rounded-xl shadow-dropdown border border-secondary-200 
+           z-50 overflow-hidden;
+  }
+
+  /* Notification Item */
+  .notification-item {
+    @apply flex items-start gap-3 p-4 
+           hover:bg-secondary-50 transition-colors duration-150 cursor-pointer
+           border-b border-secondary-100 last:border-b-0;
+  }
+
+  /* Notification Item - Unread */
+  .notification-item-unread {
+    @apply notification-item bg-primary-50/50;
+  }
+
+  /* Notification Icon Container */
+  .notification-icon {
+    @apply p-2 rounded-full shrink-0;
+  }
+}
+
+/* ============================================
+   SKELETON/LOADING COMPONENTS
+   ============================================ */
+@layer components {
+  /* Skeleton Base */
+  .skeleton {
+    @apply bg-gradient-to-r from-secondary-200 via-secondary-100 to-secondary-200 
+           bg-[length:200%_100%] animate-shimmer rounded;
+  }
+
+  /* Skeleton Text */
+  .skeleton-text {
+    @apply skeleton h-4 rounded;
+  }
+
+  /* Skeleton Title */
+  .skeleton-title {
+    @apply skeleton h-6 w-3/4 rounded;
+  }
+
+  /* Skeleton Avatar */
+  .skeleton-avatar {
+    @apply skeleton w-10 h-10 rounded-full;
+  }
+
+  /* Skeleton Card */
+  .skeleton-card {
+    @apply skeleton h-32 rounded-xl;
+  }
+
+  /* Loading Spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-secondary-200 border-t-primary-600;
+  }
+
+  /* Loading Spinner Sizes */
+  .spinner-sm {
+    @apply spinner w-4 h-4;
+  }
+
+  .spinner-md {
+    @apply spinner w-8 h-8;
+  }
+
+  .spinner-lg {
+    @apply spinner w-12 h-12;
+  }
+}
+
+/* ============================================
+   AVATAR COMPONENTS
+   ============================================ */
+@layer components {
+  /* Avatar Base */
+  .avatar {
+    @apply inline-flex items-center justify-center 
+           rounded-full bg-primary-100 text-primary-700 
+           font-medium text-sm;
+  }
+
+  /* Avatar Sizes */
+  .avatar-sm {
+    @apply avatar w-8 h-8 text-xs;
+  }
+
+  .avatar-md {
+    @apply avatar w-10 h-10 text-sm;
+  }
+
+  .avatar-lg {
+    @apply avatar w-12 h-12 text-base;
+  }
+
+  .avatar-xl {
+    @apply avatar w-16 h-16 text-lg;
+  }
+
+  /* Avatar with Image */
+  .avatar-image {
+    @apply rounded-full object-cover;
+  }
+
+  /* Avatar Group */
+  .avatar-group {
+    @apply flex -space-x-2;
+  }
+
+  .avatar-group .avatar {
+    @apply ring-2 ring-white;
+  }
+}
+
+/* ============================================
+   ALERT COMPONENTS
+   ============================================ */
+@layer components {
+  /* Alert Base */
+  .alert {
+    @apply flex items-start gap-3 p-4 rounded-xl border;
+  }
+
+  /* Alert Info */
+  .alert-info {
+    @apply alert bg-blue-50 border-blue-200 text-blue-800;
+  }
+
+  /* Alert Success */
+  .alert-success {
+    @apply alert bg-green-50 border-green-200 text-green-800;
+  }
+
+  /* Alert Warning */
+  .alert-warning {
+    @apply alert bg-yellow-50 border-yellow-200 text-yellow-800;
+  }
+
+  /* Alert Danger */
+  .alert-danger {
+    @apply alert bg-red-50 border-red-200 text-red-800;
+  }
+}
+
+/* ============================================
+   TABS COMPONENTS
+   ============================================ */
+@layer components {
+  /* Tabs Container */
+  .tabs {
+    @apply flex border-b border-secondary-200;
+  }
+
+  /* Tab Item */
+  .tab {
+    @apply px-4 py-2.5 text-sm font-medium text-secondary-500 
+           border-b-2 border-transparent 
+           hover:text-secondary-700 hover:border-secondary-300
+           transition-all duration-150;
+  }
+
+  /* Tab Active */
+  .tab-active {
+    @apply tab text-primary-600 border-primary-600 
+           hover:text-primary-600 hover:border-primary-600;
+  }
+}
+
+/* ============================================
+   TOOLTIP COMPONENTS
+   ============================================ */
+@layer components {
+  /* Tooltip */
+  .tooltip {
+    @apply absolute z-50 px-2.5 py-1.5 
+           text-xs font-medium text-white 
+           bg-secondary-900 rounded-lg shadow-lg
+           animate-fade-in;
+  }
+
+  /* Tooltip Arrow */
+  .tooltip-arrow {
+    @apply absolute w-2 h-2 bg-secondary-900 rotate-45;
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+@layer utilities {
+  /* Text truncation */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-healthcare-500;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md;
+  }
+
+  /* Focus ring utility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+}
+
+/* ============================================
+   LANDING PAGE ANIMATIONS
+   ============================================ */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes float-delayed {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 5s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Enhanced Landing Page Animations */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+@keyframes float-particle {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-40px) translateX(-5px);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translateY(-20px) translateX(15px);
+    opacity: 0.5;
+  }
+}
+
+.animate-float-particle {
+  animation: float-particle 8s ease-in-out infinite;
+}
+
+@keyframes float-particle-delayed {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.4;
+  }
+  33% {
+    transform: translateY(-30px) translateX(-15px);
+    opacity: 0.6;
+  }
+  66% {
+    transform: translateY(-50px) translateX(10px);
+    opacity: 0.3;
+  }
+}
+
+.animate-float-particle-delayed {
+  animation: float-particle-delayed 10s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+@keyframes float-particle-slow {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-25px) translateX(20px);
+    opacity: 0.7;
+  }
+}
+
+.animate-float-particle-slow {
+  animation: float-particle-slow 12s ease-in-out infinite;
+  animation-delay: 4s;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.2s ease-in;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-slide-out {
+  animation: slideOut 0.3s ease-in;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+.animate-scale-out {
+  animation: scaleOut 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ============================================
+   HERO SECTION HEALTHCARE PATTERN ANIMATIONS
+   ============================================ */
+
+/* Floating orb animation for gradient backgrounds */
+@keyframes float-orb {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) scale(1);
+  }
+  33% {
+    transform: translateY(-20px) translateX(15px) scale(1.02);
+  }
+  66% {
+    transform: translateY(10px) translateX(-10px) scale(0.98);
+  }
+}
+
+.animate-float-orb {
+  animation: float-orb 15s ease-in-out infinite;
+}
+
+/* Alternate slow pulse for gradient orbs */
+@keyframes pulse-slow-alt {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05) rotate(2deg);
+  }
+}
+
+.animate-pulse-slow-alt {
+  animation: pulse-slow-alt 8s ease-in-out infinite;
+  animation-delay: 3s;
+}
+
+/* ECG line sliding animation */
+@keyframes ecg-slide {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-300px);
+  }
+}
+
+.animate-ecg-slide {
+  animation: ecg-slide 8s linear infinite;
+}
+
+/* Medical icon float animations */
+@keyframes float-medical-icon {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.06;
+  }
+  50% {
+    transform: translateY(-15px) rotate(5deg);
+    opacity: 0.08;
+  }
+}
+
+.animate-float-medical-icon {
+  animation: float-medical-icon 6s ease-in-out infinite;
+}
+
+@keyframes float-medical-icon-delayed {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.05;
+  }
+  50% {
+    transform: translateY(-20px) rotate(-5deg);
+    opacity: 0.07;
+  }
+}
+
+.animate-float-medical-icon-delayed {
+  animation: float-medical-icon-delayed 7s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+@keyframes float-medical-icon-slow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.05;
+  }
+  50% {
+    transform: translateY(-12px) rotate(3deg);
+    opacity: 0.06;
+  }
+}
+
+.animate-float-medical-icon-slow {
+  animation: float-medical-icon-slow 8s ease-in-out infinite;
+  animation-delay: 4s;
+}
+
+@keyframes float-medical-icon-alt {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+    opacity: 0.04;
+  }
+  50% {
+    transform: translateY(-18px) scale(1.05);
+    opacity: 0.06;
+  }
+}
+
+.animate-float-medical-icon-alt {
+  animation: float-medical-icon-alt 9s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+/* Depth pulse for blurred circles */
+@keyframes depth-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+.animate-depth-pulse {
+  animation: depth-pulse 10s ease-in-out infinite;
+}
+
+@keyframes depth-pulse-delayed {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.08);
+  }
+}
+
+.animate-depth-pulse-delayed {
+  animation: depth-pulse-delayed 12s ease-in-out infinite;
+  animation-delay: 5s;
+}
+
+/* Radial gradient utility */
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
+/* ============================================
+   HERO SECTION RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+/* Large desktop optimization */
+@media (min-width: 1536px) {
+  /* Enhanced effects for large screens */
+  .hero-glow-effect {
+    opacity: 0.12;
+  }
+}
+
+/* Small desktop / Large laptop */
+@media (max-width: 1280px) {
+  /* Reduce pattern opacity on smaller desktop screens */
+  .hero-pattern-layer {
+    opacity: 0.03;
+  }
+  
+  /* Scale down floating icons */
+  .animate-float-medical-icon,
+  .animate-float-medical-icon-delayed,
+  .animate-float-medical-icon-slow,
+  .animate-float-medical-icon-alt {
+    transform: scale(0.8);
+  }
+  
+  /* Reduce glow intensity */
+  .hero-glow-effect {
+    opacity: 0.06;
+  }
+}
+
+/* Tablet landscape */
+@media (max-width: 1024px) {
+  /* Further reduce visual complexity on tablet */
+  .hero-ecg-pattern {
+    opacity: 0.04;
+  }
+  
+  /* Hide some floating elements on tablet */
+  .hero-floating-icon-tertiary {
+    display: none;
+  }
+  
+  /* Reduce animation complexity for performance */
+  .animate-ecg-slide {
+    animation-duration: 12s;
+  }
+  
+  /* Simplify depth effects */
+  .animate-depth-pulse,
+  .animate-depth-pulse-delayed {
+    animation: none;
+  }
+}
+
+/* Tablet portrait */
+@media (max-width: 768px) {
+  /* Simplify background on mobile */
+  .hero-pattern-layer {
+    opacity: 0.02;
+  }
+  
+  /* Hide ECG pattern on mobile for performance */
+  .hero-ecg-pattern {
+    display: none;
+  }
+  
+  /* Reduce orb sizes on mobile */
+  .hero-gradient-orb {
+    transform: scale(0.6);
+  }
+  
+  /* Hide floating medical icons on mobile */
+  .animate-float-medical-icon,
+  .animate-float-medical-icon-delayed,
+  .animate-float-medical-icon-slow,
+  .animate-float-medical-icon-alt {
+    display: none;
+  }
+  
+  /* Reduce particle count on mobile */
+  .hero-particle-tertiary,
+  .hero-particle-quaternary {
+    display: none;
+  }
+  
+  /* Simplify pulse animations */
+  .animate-pulse-slow,
+  .animate-pulse-slow-alt {
+    animation-duration: 8s;
+  }
+}
+
+/* Mobile landscape / Small tablet */
+@media (max-width: 640px) {
+  /* Maximum simplification for small mobile */
+  .hero-depth-layer {
+    display: none;
+  }
+  
+  /* Keep only essential gradient backgrounds */
+  .hero-secondary-orb {
+    opacity: 0.5;
+  }
+  
+  /* Disable complex animations for performance */
+  .animate-float-orb,
+  .animate-ecg-slide {
+    animation: none;
+  }
+  
+  /* Reduce blur for better performance */
+  .blur-3xl {
+    --tw-blur: blur(40px);
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  /* Minimal background effects for small screens */
+  .hero-gradient-orb {
+    opacity: 0.3;
+  }
+  
+  /* Disable all non-essential animations */
+  .animate-float-particle,
+  .animate-float-particle-delayed,
+  .animate-float-particle-slow {
+    animation: none;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  /* Disable all animations for users who prefer reduced motion */
+  .animate-float,
+  .animate-float-delayed,
+  .animate-float-slow,
+  .animate-float-orb,
+  .animate-pulse-slow,
+  .animate-pulse-slow-alt,
+  .animate-ecg-slide,
+  .animate-float-medical-icon,
+  .animate-float-medical-icon-delayed,
+  .animate-float-medical-icon-slow,
+  .animate-float-medical-icon-alt,
+  .animate-depth-pulse,
+  .animate-depth-pulse-delayed,
+  .animate-float-particle,
+  .animate-float-particle-delayed,
+  .animate-float-particle-slow {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  /* Keep static opacity for visual consistency */
+  .animate-pulse-slow,
+  .animate-pulse-slow-alt {
+    opacity: 0.8;
+  }
+}
