@@ -47,71 +47,7 @@ interface UploadedDocument {
   fileSize: number;
 }
 
-// Dummy data for demonstration
-const dummyMedicalRecords: MedicalRecord[] = [
-  {
-    id: '1',
-    date: '2024-01-15T10:30:00',
-    doctorName: 'Sarah Johnson',
-    specialization: 'Cardiology',
-    diagnosis: 'Mild Hypertension',
-    prescription: 'Amlodipine 5mg once daily',
-    notes: 'Patient advised to reduce salt intake and exercise regularly',
-    followUpDate: '2024-02-15',
-    documentName: 'Blood Test Report',
-    fileUrl: '/documents/blood-test-report.pdf',
-    fileType: 'application/pdf',
-    uploadDate: '2024-01-15T10:30:00',
-    uploadedBy: 'SYSTEM',
-    fileSize: 245000
-  },
-  {
-    id: '2',
-    date: '2024-01-10T14:00:00',
-    doctorName: 'Michael Chen',
-    specialization: 'Radiology',
-    diagnosis: 'Chest X-Ray - Clear',
-    prescription: '',
-    notes: 'No abnormalities detected. Lungs are clear.',
-    documentName: 'X-Ray Chest Scan',
-    fileUrl: '/documents/xray-chest-scan.pdf',
-    fileType: 'application/pdf',
-    uploadDate: '2024-01-10T14:00:00',
-    uploadedBy: 'SYSTEM',
-    fileSize: 1250000
-  },
-  {
-    id: '3',
-    date: '2024-01-05T09:15:00',
-    doctorName: 'Emily Roberts',
-    specialization: 'Neurology',
-    diagnosis: 'Migraine with Aura',
-    prescription: 'Sumatriptan 50mg as needed for acute attacks',
-    notes: 'Patient to maintain headache diary. Avoid triggers like bright lights and certain foods.',
-    followUpDate: '2024-02-05',
-    documentName: 'MRI Brain Scan',
-    fileUrl: '/documents/mri-brain-scan.pdf',
-    fileType: 'application/pdf',
-    uploadDate: '2024-01-05T09:15:00',
-    uploadedBy: 'SYSTEM',
-    fileSize: 3500000
-  },
-  {
-    id: '4',
-    date: '2023-12-20T11:00:00',
-    doctorName: 'David Wilson',
-    specialization: 'General Medicine',
-    diagnosis: 'Routine Health Checkup',
-    prescription: '',
-    notes: 'All vitals normal. Continue with healthy lifestyle.',
-    documentName: 'Vaccination Certificate',
-    fileUrl: '/documents/vaccination-certificate.pdf',
-    fileType: 'application/pdf',
-    uploadDate: '2023-12-20T11:00:00',
-    uploadedBy: 'SYSTEM',
-    fileSize: 180000
-  }
-];
+// Dummy data removed - all data comes from patient-specific API calls
 
 const getFileIcon = (fileType: string) => {
   if (fileType.includes('pdf')) {
@@ -173,38 +109,34 @@ export default function MedicalRecords() {
 
   useEffect(() => {
     fetchRecords();
-    loadUploadedDocuments();
+    fetchUploadedDocuments();
   }, []);
 
   const fetchRecords = async () => {
     try {
       const response = await patientPortalAPI.getRecords();
-      if (response.data && response.data.length > 0) {
-        setRecords(response.data);
-      } else {
-        // Use dummy data if no records from API
-        setRecords(dummyMedicalRecords);
-      }
+      // Only use data from the API - no dummy data fallback
+      // This ensures patient data isolation
+      setRecords(response.data || []);
     } catch (error: any) {
       console.error('Error fetching medical records:', error);
-      // Use dummy data on error
-      setRecords(dummyMedicalRecords);
+      toast.error(error.response?.data?.message || 'Failed to load medical records');
+      // Set empty records on error - no dummy data
+      setRecords([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadUploadedDocuments = () => {
-    // Load from localStorage for demo purposes
-    const stored = localStorage.getItem('patientUploadedDocuments');
-    if (stored) {
-      setUploadedDocuments(JSON.parse(stored));
+  const fetchUploadedDocuments = async () => {
+    try {
+      const response = await patientPortalAPI.getDocuments();
+      setUploadedDocuments(response.data || []);
+    } catch (error: any) {
+      console.error('Error fetching uploaded documents:', error);
+      // Don't show toast for this error as it's a secondary load
+      setUploadedDocuments([]);
     }
-  };
-
-  const saveUploadedDocuments = (docs: UploadedDocument[]) => {
-    localStorage.setItem('patientUploadedDocuments', JSON.stringify(docs));
-    setUploadedDocuments(docs);
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -259,22 +191,18 @@ export default function MedicalRecords() {
     setUploading(true);
 
     try {
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Use FormData for efficient file upload (avoids base64 size overhead)
+      const formData = new FormData();
+      formData.append('documentName', documentTitle);
+      formData.append('documentType', 'MEDICAL_RECORD');
+      formData.append('file', selectedFile);
+      formData.append('notes', '');
 
-      // Create a new document entry
-      const newDocument: UploadedDocument = {
-        id: `doc-${Date.now()}`,
-        documentName: documentTitle,
-        fileUrl: URL.createObjectURL(selectedFile), // For demo, creates a blob URL
-        fileType: selectedFile.type,
-        uploadDate: new Date().toISOString(),
-        uploadedBy: 'PATIENT',
-        fileSize: selectedFile.size
-      };
+      // Upload to server
+      await patientPortalAPI.uploadDocument(formData);
 
-      const updatedDocs = [newDocument, ...uploadedDocuments];
-      saveUploadedDocuments(updatedDocs);
+      // Refresh the documents list from server
+      await fetchUploadedDocuments();
 
       toast.success('Document uploaded successfully!');
       setShowUploadModal(false);
@@ -282,7 +210,7 @@ export default function MedicalRecords() {
       setDocumentTitle('');
     } catch (error: any) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload document. Please try again.');
+      toast.error(error.response?.data?.message || 'Failed to upload document. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -369,10 +297,15 @@ export default function MedicalRecords() {
     }
   };
 
-  const handleDeleteDocument = (docId: string) => {
-    const updatedDocs = uploadedDocuments.filter(d => d.id !== docId);
-    saveUploadedDocuments(updatedDocs);
-    toast.success('Document deleted successfully');
+  const handleDeleteDocument = async (docId: string) => {
+    try {
+      await patientPortalAPI.deleteDocument(docId);
+      await fetchUploadedDocuments();
+      toast.success('Document deleted successfully');
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete document');
+    }
   };
 
   const closeUploadModal = () => {

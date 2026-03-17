@@ -22,8 +22,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => {
     // If response has data.data (backend wraps in { success, data: {...} }), unwrap it
+    // Return a new response object with unwrapped data, preserving original in meta
     if (response.data && typeof response.data === 'object' && 'data' in response.data) {
-      response.data = response.data.data;
+      const { data: unwrappedData, ...meta } = response.data;
+      return {
+        ...response,
+        data: unwrappedData,
+        meta: { originalResponse: meta }, // Preserve success/message for debugging
+      } as typeof response & { meta?: { originalResponse: unknown } };
     }
     return response;
   },
@@ -144,6 +150,9 @@ export const patientPortalAPI = {
   getAppointmentsUpcoming: () =>
     api.get('/patient/appointments/upcoming'),
 
+  getTotalAppointments: () =>
+    api.get('/patient/appointments/count'),
+
   bookAppointment: (data: any) =>
     api.post('/patient/appointments', data),
 
@@ -161,9 +170,26 @@ export const patientPortalAPI = {
   getPrescriptions: (status?: string) =>
     api.get('/patient/prescriptions', { params: status ? { status } : {} }),
 
+  getPrescriptionById: (id: string) =>
+    api.get(`/patient/prescriptions/${id}`),
+
   // Lab Reports
   getLabReports: (status?: string) =>
     api.get('/patient/lab-reports', { params: status ? { status } : {} }),
+
+  // Uploaded Documents
+  getDocuments: (type?: string) =>
+    api.get('/patient/documents', { params: type ? { type } : {} }),
+
+  uploadDocument: (data: FormData) =>
+    api.post('/patient/documents', data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
+
+  deleteDocument: (id: string) =>
+    api.delete(`/patient/documents/${id}`),
 };
 
 // Doctor API
@@ -210,6 +236,26 @@ export const doctorAPI = {
 
   rescheduleAppointment: (id: string, data: any) =>
     api.put(`/doctors/appointments/${id}/reschedule`, data),
+
+  // Consultation endpoints
+  startConsultation: (appointmentId: string) =>
+    api.put(`/doctors/appointments/${appointmentId}/start`),
+
+  saveConsultation: (data: any) =>
+    api.post('/doctors/consultation', data),
+
+  getConsultation: (appointmentId: string) =>
+    api.get(`/doctors/consultation/${appointmentId}`),
+
+  // Patient Records (for consultation)
+  getPatientRecords: (patientId: string) =>
+    api.get(`/doctors/patients/${patientId}/records`),
+
+  getPatientLabReports: (patientId: string, status?: string) =>
+    api.get(`/doctors/patients/${patientId}/lab-reports`, { params: { status } }),
+
+  getPatientDocuments: (patientId: string, type?: string) =>
+    api.get(`/doctors/patients/${patientId}/documents`, { params: type ? { type } : {} }),
 };
 
 // Notification API
@@ -292,29 +338,82 @@ export const adminAPI = {
 
 // Pharmacy API
 export const pharmacyAPI = {
+  // Dashboard
   getDashboardStats: () =>
     api.get('/pharmacy/dashboard-stats'),
 
-  getPendingPrescriptions: () =>
-    api.get('/pharmacy/prescriptions/pending'),
+  // Prescriptions
+  getPendingPrescriptions: (params?: any) =>
+    api.get('/pharmacy/prescriptions/pending', { params }),
 
   getPrescription: (id: string) =>
     api.get(`/pharmacy/prescriptions/${id}`),
 
+  // Medicines
   getMedicines: (params?: any) =>
     api.get('/pharmacy/medicines', { params }),
+
+  createMedicine: (data: any) =>
+    api.post('/pharmacy/medicines', data),
 
   getSubstitutes: (id: string) =>
     api.get(`/pharmacy/medicines/${id}/substitutes`),
 
-  dispense: (data: any) =>
-    api.post('/pharmacy/dispense', data),
-
+  // Inventory
   getInventory: (params?: any) =>
     api.get('/pharmacy/inventory', { params }),
 
   addInventory: (data: any) =>
     api.post('/pharmacy/inventory', data),
+
+  updateInventory: (id: string, data: any) =>
+    api.put(`/pharmacy/inventory/${id}`, data),
+
+  restockInventory: (id: string, quantity: number) =>
+    api.post(`/pharmacy/inventory/${id}/restock`, { quantity }),
+
+  getInventoryAlerts: () =>
+    api.get('/pharmacy/inventory/alerts'),
+
+  // Dispensing
+  dispense: (data: any) =>
+    api.post('/pharmacy/dispense', data),
+
+  // Bills
+  getBills: (params?: any) =>
+    api.get('/pharmacy/bills', { params }),
+
+  getBill: (id: string) =>
+    api.get(`/pharmacy/bills/${id}`),
+
+  getBillForDownload: (id: string) =>
+    api.get(`/pharmacy/bills/${id}/download`),
+
+  // Expenses
+  getExpenses: (params?: any) =>
+    api.get('/pharmacy/expenses', { params }),
+
+  createExpense: (data: any) =>
+    api.post('/pharmacy/expenses', data),
+
+  updateExpense: (id: string, data: any) =>
+    api.put(`/pharmacy/expenses/${id}`, data),
+
+  deleteExpense: (id: string) =>
+    api.delete(`/pharmacy/expenses/${id}`),
+
+  // Reports
+  getSalesReport: (params?: any) =>
+    api.get('/pharmacy/reports/sales', { params }),
+
+  getTopMedicinesReport: (params?: any) =>
+    api.get('/pharmacy/reports/top-medicines', { params }),
+
+  getStockTransactionsReport: (params?: any) =>
+    api.get('/pharmacy/reports/stock-transactions', { params }),
+
+  getExpenseReport: (params?: any) =>
+    api.get('/pharmacy/reports/expenses', { params }),
 };
 
 // Lab API

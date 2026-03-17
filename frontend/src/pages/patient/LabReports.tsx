@@ -36,93 +36,7 @@ interface LabReport {
   reportFileType?: string;
 }
 
-// Dummy data for demonstration
-const dummyLabReports: LabReport[] = [
-  {
-    id: '1',
-    date: '2024-01-18T09:00:00',
-    testName: 'Complete Blood Count (CBC)',
-    category: 'Hematology',
-    doctorName: 'Sarah Johnson',
-    status: 'COMPLETED',
-    reportFileUrl: '/lab-reports/cbc-report.pdf',
-    reportFileType: 'application/pdf',
-    results: [
-      { parameter: 'Hemoglobin', value: '14.2', unit: 'g/dL', referenceRange: '12.0 - 16.0', interpretation: 'NORMAL' },
-      { parameter: 'WBC Count', value: '7,500', unit: '/mm³', referenceRange: '4,000 - 11,000', interpretation: 'NORMAL' },
-      { parameter: 'Platelet Count', value: '250,000', unit: '/mm³', referenceRange: '150,000 - 400,000', interpretation: 'NORMAL' },
-      { parameter: 'RBC Count', value: '4.8', unit: 'million/mm³', referenceRange: '4.5 - 5.5', interpretation: 'NORMAL' },
-      { parameter: 'Hematocrit', value: '42', unit: '%', referenceRange: '36 - 48', interpretation: 'NORMAL' }
-    ],
-    notes: 'All parameters are within normal range. No abnormalities detected.'
-  },
-  {
-    id: '2',
-    date: '2024-01-15T10:30:00',
-    testName: 'Liver Function Test (LFT)',
-    category: 'Biochemistry',
-    doctorName: 'Michael Chen',
-    status: 'COMPLETED',
-    reportFileUrl: '/lab-reports/lft-report.pdf',
-    reportFileType: 'application/pdf',
-    results: [
-      { parameter: 'ALT (SGPT)', value: '28', unit: 'U/L', referenceRange: '7 - 56', interpretation: 'NORMAL' },
-      { parameter: 'AST (SGOT)', value: '24', unit: 'U/L', referenceRange: '10 - 40', interpretation: 'NORMAL' },
-      { parameter: 'Bilirubin Total', value: '0.9', unit: 'mg/dL', referenceRange: '0.1 - 1.2', interpretation: 'NORMAL' },
-      { parameter: 'Alkaline Phosphatase', value: '85', unit: 'U/L', referenceRange: '44 - 147', interpretation: 'NORMAL' },
-      { parameter: 'Albumin', value: '4.2', unit: 'g/dL', referenceRange: '3.5 - 5.5', interpretation: 'NORMAL' }
-    ],
-    notes: 'Liver function is normal. Continue with current medications.'
-  },
-  {
-    id: '3',
-    date: '2024-01-12T14:00:00',
-    testName: 'Thyroid Profile (T3, T4, TSH)',
-    category: 'Endocrinology',
-    doctorName: 'Emily Roberts',
-    status: 'COMPLETED',
-    reportFileUrl: '/lab-reports/thyroid-report.pdf',
-    reportFileType: 'application/pdf',
-    results: [
-      { parameter: 'TSH', value: '2.4', unit: 'mIU/L', referenceRange: '0.4 - 4.0', interpretation: 'NORMAL' },
-      { parameter: 'T3 Total', value: '120', unit: 'ng/dL', referenceRange: '80 - 200', interpretation: 'NORMAL' },
-      { parameter: 'T4 Total', value: '8.5', unit: 'µg/dL', referenceRange: '5.0 - 12.0', interpretation: 'NORMAL' },
-      { parameter: 'Free T4', value: '1.2', unit: 'ng/dL', referenceRange: '0.8 - 1.8', interpretation: 'NORMAL' }
-    ],
-    notes: 'Thyroid function is within normal limits. No treatment adjustment needed.'
-  },
-  {
-    id: '4',
-    date: '2024-01-20T11:00:00',
-    testName: 'Urine Analysis',
-    category: 'Pathology',
-    doctorName: 'David Wilson',
-    status: 'COMPLETED',
-    reportFileUrl: '/lab-reports/urine-analysis.pdf',
-    reportFileType: 'application/pdf',
-    results: [
-      { parameter: 'Color', value: 'Pale Yellow', unit: '', referenceRange: 'Pale Yellow', interpretation: 'NORMAL' },
-      { parameter: 'pH', value: '6.0', unit: '', referenceRange: '4.5 - 8.0', interpretation: 'NORMAL' },
-      { parameter: 'Specific Gravity', value: '1.015', unit: '', referenceRange: '1.005 - 1.030', interpretation: 'NORMAL' },
-      { parameter: 'Protein', value: 'Negative', unit: '', referenceRange: 'Negative', interpretation: 'NORMAL' },
-      { parameter: 'Glucose', value: 'Negative', unit: '', referenceRange: 'Negative', interpretation: 'NORMAL' },
-      { parameter: 'WBC', value: '0-2', unit: '/hpf', referenceRange: '0-5', interpretation: 'NORMAL' }
-    ],
-    notes: 'Urine analysis is normal. No signs of infection or other abnormalities.'
-  },
-  {
-    id: '5',
-    date: '2024-01-22T08:30:00',
-    testName: 'Lipid Profile',
-    category: 'Biochemistry',
-    doctorName: 'Sarah Johnson',
-    status: 'PENDING',
-    reportFileUrl: '',
-    reportFileType: '',
-    results: [],
-    notes: 'Sample collected. Results expected within 24-48 hours.'
-  }
-];
+// Dummy data removed - all data comes from patient-specific API calls
 
 const getStatusConfig = (status: string) => {
   switch (status) {
@@ -192,16 +106,14 @@ export default function LabReports() {
   const fetchReports = async () => {
     try {
       const response = await patientPortalAPI.getLabReports(filter !== 'all' ? filter : undefined);
-      if (response.data && response.data.length > 0) {
-        setReports(response.data);
-      } else {
-        // Use dummy data if no records from API
-        setReports(dummyLabReports);
-      }
+      // Only use data from the API - no dummy data fallback
+      // This ensures patient data isolation
+      setReports(response.data || []);
     } catch (error: any) {
       console.error('Error fetching lab reports:', error);
-      // Use dummy data on error
-      setReports(dummyLabReports);
+      toast.error(error.response?.data?.message || 'Failed to load lab reports');
+      // Set empty reports on error - no dummy data
+      setReports([]);
     } finally {
       setLoading(false);
     }

@@ -47,7 +47,8 @@ export default function ProfileSetup() {
         ? data.allergies.split(',').map(a => a.trim()).filter(a => a.length > 0)
         : [];
 
-      const response = await patientPortalAPI.updateProfile({
+      // Update profile - response handled via try/catch (errors throw, success continues)
+      await patientPortalAPI.updateProfile({
         ...data,
         weight: parseFloat(data.weight),
         dateOfBirth: new Date(data.dateOfBirth).toISOString(),

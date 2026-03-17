@@ -2,18 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Calendar,
-  FileText,
   User,
   Plus,
-  ChevronRight,
   Clock,
   Video,
   Stethoscope,
   ClipboardList,
   FlaskConical,
-  Heart,
   Activity,
   AlertCircle,
+  FileText,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { patientPortalAPI } from '../../lib/api';
@@ -31,14 +29,6 @@ interface Appointment {
   type: string;
   doctorUnavailable?: boolean;
   unavailabilityReason?: string | null;
-}
-
-interface MedicalRecord {
-  id: string;
-  date: string;
-  diagnosis: string;
-  doctorName: string;
-  department?: string;
 }
 
 const getStatusBadge = (status: string) => {
@@ -77,8 +67,7 @@ const getStatusBadge = (status: string) => {
 export default function PatientDashboard() {
   const { user } = useAuthStore();
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
-  const [recentRecords, setRecentRecords] = useState<MedicalRecord[]>([]);
-  const [medicalRecordsCount, setMedicalRecordsCount] = useState(0);
+  const [totalAppointments, setTotalAppointments] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -87,14 +76,12 @@ export default function PatientDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [appointmentsRes, recordsRes, countRes] = await Promise.all([
+      const [appointmentsRes, totalRes] = await Promise.all([
         patientPortalAPI.getAppointmentsUpcoming(),
-        patientPortalAPI.getRecentRecords(),
-        patientPortalAPI.getRecordsCount(),
+        patientPortalAPI.getTotalAppointments(),
       ]);
       setUpcomingAppointments(appointmentsRes.data);
-      setRecentRecords(recordsRes.data);
-      setMedicalRecordsCount(countRes.data.count);
+      setTotalAppointments(totalRes.data.count);
     } catch (error: any) {
       console.error('Error fetching dashboard data:', error);
       toast.error(error.response?.data?.message || 'Failed to load dashboard data');
@@ -108,19 +95,8 @@ export default function PatientDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Quick Action */}
-      <div className="flex justify-end">
-        <Link
-          to="/patient/book"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-        >
-          <Plus className="w-4 h-4" />
-          Book Appointment
-        </Link>
-      </div>
-
-      {/* Quick Stats - Small metric cards remain unchanged */}
+    <div className="space-y-4 sm:space-y-5">
+      {/* Dashboard Cards - Total Appointments, Patient ID, and Book Appointment */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-5 hover:shadow-card-hover transition-shadow duration-200">
           <div className="flex items-center gap-4">
@@ -128,20 +104,9 @@ export default function PatientDashboard() {
               <Calendar className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-secondary-500">Upcoming Appointments</p>
-              <p className="text-2xl font-bold text-secondary-900">{upcomingAppointments.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-5 hover:shadow-card-hover transition-shadow duration-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-green-100">
-              <FileText className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-secondary-500">Medical Records</p>
-              <p className="text-2xl font-bold text-secondary-900">{medicalRecordsCount}</p>
+              <p className="text-sm text-secondary-500 font-medium">Total Appointments</p>
+              <p className="text-2xl font-bold text-secondary-900">{totalAppointments}</p>
+              <p className="text-xs text-secondary-400 mt-1">All booked appointments</p>
             </div>
           </div>
         </div>
@@ -152,11 +117,28 @@ export default function PatientDashboard() {
               <User className="w-6 h-6 text-healthcare-600" />
             </div>
             <div>
-              <p className="text-sm text-secondary-500">Patient ID</p>
-              <p className="text-lg font-bold text-secondary-900">{user?.patientNumber || 'N/A'}</p>
+              <p className="text-sm text-secondary-500 font-medium">Patient ID</p>
+              <p className="text-2xl font-bold text-secondary-900">{user?.patientNumber || 'N/A'}</p>
+              <p className="text-xs text-secondary-400 mt-1">Unique patient identifier</p>
             </div>
           </div>
         </div>
+
+        <Link
+          to="/patient/book"
+          className="bg-white rounded-xl border border-secondary-200 shadow-card p-5 hover:shadow-card-hover transition-all duration-200 hover:border-primary-300 hover:-translate-y-0.5 cursor-pointer group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-green-100 group-hover:bg-green-200 transition-colors duration-200">
+              <Plus className="w-6 h-6 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-secondary-500 font-medium">Book Appointment</p>
+              <p className="text-2xl font-bold text-secondary-900">Schedule</p>
+              <p className="text-xs text-secondary-400 mt-1">Book a new appointment</p>
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* Upcoming Appointments - Collapsible */}
@@ -245,65 +227,6 @@ export default function PatientDashboard() {
                         </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </CollapsibleCard>
-
-      {/* Recent Medical Records - Collapsible */}
-      <CollapsibleCard
-        title="Recent Medical Records"
-        subtitle="Your health history"
-        icon={<FileText className="w-5 h-5 text-green-600" />}
-        iconBgColor="bg-green-100"
-        defaultCollapsed={true}
-        collapsedContent={
-          <div className="flex items-center gap-4 text-sm text-secondary-600">
-            <span className="inline-flex items-center gap-1.5">
-              <FileText className="w-4 h-4" />
-              {medicalRecordsCount} medical record{medicalRecordsCount !== 1 ? 's' : ''}
-            </span>
-            {recentRecords.length > 0 && recentRecords[0] && (
-              <>
-                <span className="text-secondary-400">•</span>
-                <span>
-                  Latest: {recentRecords[0].diagnosis} ({recentRecords[0].date})
-                </span>
-              </>
-            )}
-          </div>
-        }
-      >
-        <div className="p-5">
-          {recentRecords.length === 0 ? (
-            <div className="flex flex-col items-center py-10">
-              <div className="w-16 h-16 rounded-2xl bg-secondary-100 flex items-center justify-center mb-4">
-                <FileText className="w-8 h-8 text-secondary-400" />
-              </div>
-              <p className="text-sm font-medium text-secondary-700">No medical records yet</p>
-              <p className="text-xs text-secondary-500 mt-1">Your records will appear here after visits</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentRecords.map((record) => (
-                <div
-                  key={record.id}
-                  className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-100"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-secondary-900">{record.diagnosis}</p>
-                      <p className="text-xs text-secondary-500">By {record.doctorName}{record.department && ` • ${record.department}`}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-secondary-600">{record.date}</p>
                   </div>
                 </div>
               ))}

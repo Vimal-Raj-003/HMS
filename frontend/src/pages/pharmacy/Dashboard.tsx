@@ -8,7 +8,10 @@ import {
   Package,
   Pill,
   BarChart3,
-  ShoppingCart
+  Plus,
+  Receipt,
+  TrendingUp,
+  ArrowRight
 } from 'lucide-react';
 import CollapsibleCard from '../../components/ui/CollapsibleCard';
 import { pharmacyAPI } from '../../lib/api';
@@ -18,11 +21,20 @@ interface DashboardStats {
   todaySales: number;
   lowStockItems: number;
   expiringItems: number;
+  monthlySales: number;
   recentTransactions: Array<{
     id: string;
+    dispenseNumber: string;
     patientName: string;
+    patientNumber: string;
     amount: number;
     time: string;
+  }>;
+  topSellingMedicines: Array<{
+    medicineId: string;
+    medicineName: string;
+    totalQuantity: number;
+    totalRevenue: number;
   }>;
 }
 
@@ -32,6 +44,9 @@ export default function PharmacyDashboard() {
 
   useEffect(() => {
     fetchDashboardStats();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchDashboardStats, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardStats = async () => {
@@ -45,6 +60,30 @@ export default function PharmacyDashboard() {
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+    }).format(amount || 0);
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffMins < 60) {
+      return `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else {
+      return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -54,9 +93,9 @@ export default function PharmacyDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       {/* Quick Actions */}
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <Link to="/pharmacy/inventory" className="btn-secondary inline-flex items-center gap-2">
           <Package className="w-4 h-4" />
           Manage Inventory
@@ -67,78 +106,110 @@ export default function PharmacyDashboard() {
         </Link>
       </div>
 
-      {/* Stats Cards - Small metric cards remain unchanged */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-orange-100">
-              <FileText className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-xs text-secondary-500">Pending</p>
-              <p className="text-xl font-bold text-secondary-900">{stats?.pendingPrescriptions || 0}</p>
+      {/* Stats Cards */}
+      <div className="hms-four-col">
+        <Link to="/pharmacy/prescriptions" className="block">
+          <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-all duration-200 hover:border-orange-300 cursor-pointer">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-orange-100">
+                <FileText className="w-5 h-5 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-secondary-500 uppercase tracking-wide">Pending</p>
+                <p className="text-2xl font-bold text-secondary-900">{stats?.pendingPrescriptions || 0}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-secondary-400" />
             </div>
           </div>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
+        <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-100">
+            <div className="p-3 rounded-xl bg-green-100">
               <IndianRupee className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-xs text-secondary-500">Today's Sales</p>
-              <p className="text-xl font-bold text-secondary-900">₹{(stats?.todaySales || 0).toLocaleString()}</p>
+              <p className="text-xs text-secondary-500 uppercase tracking-wide">Today's Sales</p>
+              <p className="text-2xl font-bold text-secondary-900">{formatCurrency(stats?.todaySales || 0)}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-red-100">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-xs text-secondary-500">Low Stock</p>
-              <p className="text-xl font-bold text-secondary-900">{stats?.lowStockItems || 0}</p>
+        <Link to="/pharmacy/inventory?filter=lowStock" className="block">
+          <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-all duration-200 hover:border-red-300 cursor-pointer">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-red-100">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-secondary-500 uppercase tracking-wide">Low Stock</p>
+                <p className="text-2xl font-bold text-secondary-900">{stats?.lowStockItems || 0}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-secondary-400" />
             </div>
           </div>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-yellow-100">
-              <Clock className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-xs text-secondary-500">Expiring Soon</p>
-              <p className="text-xl font-bold text-secondary-900">{stats?.expiringItems || 0}</p>
+        <Link to="/pharmacy/inventory?filter=expiring" className="block">
+          <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-all duration-200 hover:border-yellow-300 cursor-pointer">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-yellow-100">
+                <Clock className="w-5 h-5 text-yellow-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-secondary-500 uppercase tracking-wide">Expiring Soon</p>
+                <p className="text-2xl font-bold text-secondary-900">{stats?.expiringItems || 0}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-secondary-400" />
             </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Alerts Banner */}
       {(stats?.lowStockItems || 0) > 0 || (stats?.expiringItems || 0) > 0 ? (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-600" />
-            <div>
+            <div className="p-2 bg-red-100 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+            </div>
+            <div className="flex-1">
               <h3 className="font-semibold text-red-800">Attention Required</h3>
-              <div className="mt-2 text-sm text-red-700">
-                {(stats?.lowStockItems || 0) > 0 && <p>• {stats?.lowStockItems} items are below reorder level</p>}
-                {(stats?.expiringItems || 0) > 0 && <p>• {stats?.expiringItems} items are expiring within 30 days</p>}
+              <div className="mt-2 text-sm text-red-700 space-y-1">
+                {(stats?.lowStockItems || 0) > 0 && (
+                  <p>• {stats?.lowStockItems} items are below reorder level</p>
+                )}
+                {(stats?.expiringItems || 0) > 0 && (
+                  <p>• {stats?.expiringItems} items are expiring within 60 days</p>
+                )}
               </div>
-              <Link to="/pharmacy/inventory?filter=alerts" className="btn-secondary btn-sm mt-3 inline-flex items-center gap-2">
-                View Alerts
+              <Link 
+                to="/pharmacy/inventory?filter=alerts" 
+                className="btn-secondary btn-sm mt-3 inline-flex items-center gap-2"
+              >
+                View All Alerts
+                <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>
         </div>
       ) : null}
 
-      {/* Recent Transactions & Quick Actions - Collapsible */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Monthly Summary */}
+      <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-4 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-primary-100 text-sm">Monthly Sales</p>
+            <p className="text-3xl font-bold">{formatCurrency(stats?.monthlySales || 0)}</p>
+          </div>
+          <div className="p-3 bg-white/20 rounded-xl">
+            <TrendingUp className="w-8 h-8" />
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="hms-two-col">
         {/* Recent Transactions */}
         <CollapsibleCard
           title="Recent Transactions"
@@ -149,10 +220,13 @@ export default function PharmacyDashboard() {
           collapsedContent={
             <div className="space-y-2">
               {stats?.recentTransactions && stats.recentTransactions.length > 0 ? (
-                stats.recentTransactions.slice(0, 2).map((tx) => (
+                stats.recentTransactions.slice(0, 3).map((tx) => (
                   <div key={tx.id} className="flex items-center justify-between text-sm">
-                    <span className="text-secondary-600">{tx.patientName}</span>
-                    <span className="font-medium text-green-600">₹{tx.amount.toLocaleString()}</span>
+                    <div>
+                      <span className="text-secondary-700">{tx.patientName}</span>
+                      <span className="text-secondary-400 ml-2">({tx.patientNumber})</span>
+                    </div>
+                    <span className="font-medium text-green-600">{formatCurrency(tx.amount)}</span>
                   </div>
                 ))
               ) : (
@@ -162,17 +236,24 @@ export default function PharmacyDashboard() {
           }
         >
           <div className="space-y-3">
-            {stats?.recentTransactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between p-3 bg-secondary-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-secondary-900">{tx.patientName}</p>
-                  <p className="text-sm text-secondary-600">{tx.time}</p>
+            {stats?.recentTransactions && stats.recentTransactions.length > 0 ? (
+              stats.recentTransactions.map((tx) => (
+                <div key={tx.id} className="flex items-center justify-between p-3 bg-secondary-50 rounded-lg hover:bg-secondary-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Receipt className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-secondary-900">{tx.patientName}</p>
+                      <p className="text-xs text-secondary-500">{tx.dispenseNumber} • {formatTime(tx.time)}</p>
+                    </div>
+                  </div>
+                  <span className="font-semibold text-green-600">{formatCurrency(tx.amount)}</span>
                 </div>
-                <span className="font-semibold text-green-600">₹{tx.amount.toLocaleString()}</span>
-              </div>
-            ))}
-            {(!stats?.recentTransactions || stats.recentTransactions.length === 0) && (
+              ))
+            ) : (
               <div className="text-center py-8 text-secondary-500">
+                <Receipt className="w-12 h-12 mx-auto mb-2 opacity-30" />
                 <p>No recent transactions</p>
               </div>
             )}
@@ -187,73 +268,166 @@ export default function PharmacyDashboard() {
           iconBgColor="bg-primary-100"
           defaultCollapsed={true}
           collapsedContent={
-            <div className="flex flex-wrap items-center gap-3 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
               <Link
                 to="/pharmacy/prescriptions"
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 hover:bg-orange-100"
               >
-                <FileText className="w-4 h-4" />
-                Pending Prescriptions
+                <FileText className="w-3.5 h-3.5" />
+                Pending ({stats?.pendingPrescriptions || 0})
               </Link>
               <Link
                 to="/pharmacy/inventory"
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100"
               >
-                <Package className="w-4 h-4" />
+                <Package className="w-3.5 h-3.5" />
                 Inventory
               </Link>
               <Link
-                to="/pharmacy/dispense"
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700"
+                to="/pharmacy/bills"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100"
               >
-                <ShoppingCart className="w-4 h-4" />
-                Dispense Medicine
+                <Receipt className="w-3.5 h-3.5" />
+                Bills
+              </Link>
+              <Link
+                to="/pharmacy/expenses"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100"
+              >
+                <IndianRupee className="w-3.5 h-3.5" />
+                Expenses
               </Link>
               <Link
                 to="/pharmacy/reports"
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100"
               >
-                <BarChart3 className="w-4 h-4" />
+                <BarChart3 className="w-3.5 h-3.5" />
                 Reports
               </Link>
             </div>
           }
         >
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <Link
               to="/pharmacy/prescriptions"
-              className="flex flex-col items-center p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+              className="flex flex-col items-center p-4 bg-orange-50 rounded-xl hover:bg-orange-100 transition-colors group"
             >
-              <FileText className="w-8 h-8 text-primary-600 mb-2" />
-              <span className="text-sm font-medium text-primary-700">Pending Prescriptions</span>
+              <div className="p-3 bg-orange-100 rounded-xl mb-2 group-hover:scale-110 transition-transform">
+                <FileText className="w-6 h-6 text-orange-600" />
+              </div>
+              <span className="text-sm font-medium text-orange-700">Pending Prescriptions</span>
+              <span className="text-xs text-orange-500 mt-1">{stats?.pendingPrescriptions || 0} waiting</span>
             </Link>
 
             <Link
               to="/pharmacy/inventory"
-              className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+              className="flex flex-col items-center p-4 bg-green-50 rounded-xl hover:bg-green-100 transition-colors group"
             >
-              <Package className="w-8 h-8 text-green-600 mb-2" />
-              <span className="text-sm font-medium text-green-700">Inventory</span>
+              <div className="p-3 bg-green-100 rounded-xl mb-2 group-hover:scale-110 transition-transform">
+                <Package className="w-6 h-6 text-green-600" />
+              </div>
+              <span className="text-sm font-medium text-green-700">Manage Inventory</span>
+              <span className="text-xs text-green-500 mt-1">Stock & batches</span>
             </Link>
 
             <Link
-              to="/pharmacy/dispense"
-              className="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+              to="/pharmacy/inventory?action=add"
+              className="flex flex-col items-center p-4 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors group"
             >
-              <ShoppingCart className="w-8 h-8 text-purple-600 mb-2" />
-              <span className="text-sm font-medium text-purple-700">Dispense Medicine</span>
+              <div className="p-3 bg-emerald-100 rounded-xl mb-2 group-hover:scale-110 transition-transform">
+                <Plus className="w-6 h-6 text-emerald-600" />
+              </div>
+              <span className="text-sm font-medium text-emerald-700">Add Stock</span>
+              <span className="text-xs text-emerald-500 mt-1">Stock in</span>
+            </Link>
+
+            <Link
+              to="/pharmacy/bills"
+              className="flex flex-col items-center p-4 bg-purple-50 rounded-xl hover:bg-purple-100 transition-colors group"
+            >
+              <div className="p-3 bg-purple-100 rounded-xl mb-2 group-hover:scale-110 transition-transform">
+                <Receipt className="w-6 h-6 text-purple-600" />
+              </div>
+              <span className="text-sm font-medium text-purple-700">View Bills</span>
+              <span className="text-xs text-purple-500 mt-1">Sales history</span>
+            </Link>
+
+            <Link
+              to="/pharmacy/expenses"
+              className="flex flex-col items-center p-4 bg-red-50 rounded-xl hover:bg-red-100 transition-colors group"
+            >
+              <div className="p-3 bg-red-100 rounded-xl mb-2 group-hover:scale-110 transition-transform">
+                <IndianRupee className="w-6 h-6 text-red-600" />
+              </div>
+              <span className="text-sm font-medium text-red-700">Expenses</span>
+              <span className="text-xs text-red-500 mt-1">Track spending</span>
             </Link>
 
             <Link
               to="/pharmacy/reports"
-              className="flex flex-col items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
+              className="flex flex-col items-center p-4 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors group"
             >
-              <BarChart3 className="w-8 h-8 text-yellow-600 mb-2" />
-              <span className="text-sm font-medium text-yellow-700">Reports</span>
+              <div className="p-3 bg-blue-100 rounded-xl mb-2 group-hover:scale-110 transition-transform">
+                <BarChart3 className="w-6 h-6 text-blue-600" />
+              </div>
+              <span className="text-sm font-medium text-blue-700">Reports</span>
+              <span className="text-xs text-blue-500 mt-1">Analytics</span>
             </Link>
           </div>
         </CollapsibleCard>
       </div>
+
+      {/* Top Selling Medicines */}
+      <CollapsibleCard
+        title="Top Selling Medicines"
+        subtitle="Last 30 days performance"
+        icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
+        iconBgColor="bg-blue-100"
+        defaultCollapsed={true}
+        collapsedContent={
+          <div className="space-y-2">
+            {stats?.topSellingMedicines && stats.topSellingMedicines.length > 0 ? (
+              stats.topSellingMedicines.slice(0, 3).map((med, index) => (
+                <div key={med.medicineId} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-medium">
+                      {index + 1}
+                    </span>
+                    <span className="text-secondary-700">{med.medicineName}</span>
+                  </div>
+                  <span className="text-secondary-500">{med.totalQuantity} units</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-secondary-500">No data available</p>
+            )}
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          {stats?.topSellingMedicines && stats.topSellingMedicines.length > 0 ? (
+            stats.topSellingMedicines.map((med, index) => (
+              <div key={med.medicineId} className="flex items-center justify-between p-3 bg-secondary-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-medium text-secondary-900">{med.medicineName}</p>
+                    <p className="text-xs text-secondary-500">{med.totalQuantity} units sold</p>
+                  </div>
+                </div>
+                <span className="font-semibold text-green-600">{formatCurrency(med.totalRevenue)}</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-secondary-500">
+              <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-30" />
+              <p>No sales data available</p>
+            </div>
+          )}
+        </div>
+      </CollapsibleCard>
     </div>
   );
 }

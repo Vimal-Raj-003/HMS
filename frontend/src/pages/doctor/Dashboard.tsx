@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   FlaskConical,
   Calendar,
-  ChevronRight,
   Stethoscope,
   FileText,
   ClipboardList,
@@ -78,6 +77,30 @@ export default function DoctorDashboard() {
     fetchDashboardData();
   }, []);
 
+  // Helper function to check if an appointment is in the future
+  const isFutureAppointment = (appointment: Appointment): boolean => {
+    const now = new Date();
+    // Convert to IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffset);
+    const currentDate = istNow.toISOString().split('T')[0];
+    const currentTime = istNow.toTimeString().slice(0, 5);
+
+    const appointmentDate = appointment.appointmentDate;
+    const appointmentTime = appointment.startTime;
+
+    // If appointment date is in the future, it's valid
+    if (appointmentDate > currentDate) {
+      return true;
+    }
+    // If appointment date is today, check the time
+    if (appointmentDate === currentDate && appointmentTime >= currentTime) {
+      return true;
+    }
+    // Otherwise, it's in the past
+    return false;
+  };
+
   const fetchDashboardData = async () => {
     try {
       const [statsRes, appointmentsRes] = await Promise.all([
@@ -85,7 +108,9 @@ export default function DoctorDashboard() {
         doctorAPI.getUpcomingAppointments(),
       ]);
       setStats(statsRes.data);
-      setUpcomingAppointments(appointmentsRes.data || []);
+      // Frontend validation: filter out any past appointments as a safety measure
+      const futureAppointments = (appointmentsRes.data || []).filter(isFutureAppointment);
+      setUpcomingAppointments(futureAppointments);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -201,7 +226,7 @@ export default function DoctorDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       {/* Quick Action */}
       <div className="flex justify-end">
         <Link to="/doctor/consultation" className="btn-primary inline-flex items-center gap-2">
@@ -211,13 +236,13 @@ export default function DoctorDashboard() {
       </div>
 
       {/* Stats Cards - Updated metrics for patient workload */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="hms-stats-grid">
         <StatCard
           title="Total Patients"
           value={stats?.todayTotal || 0}
           icon={<Users className="w-6 h-6" />}
           color="blue"
-          subtitle="Today's schedule"
+          subtitle="Total appointments"
         />
         <StatCard
           title="Completed"
@@ -231,7 +256,7 @@ export default function DoctorDashboard() {
           value={stats?.remaining || 0}
           icon={<Clock className="w-6 h-6" />}
           color="yellow"
-          subtitle="In queue"
+          subtitle=""
         />
         <StatCard
           title="Unattended"
@@ -252,7 +277,7 @@ export default function DoctorDashboard() {
       {/* Upcoming Appointments Section - Collapsible */}
       <CollapsibleCard
         title="Upcoming Appointments"
-        subtitle="Your upcoming patients for today"
+        subtitle="Your upcoming appointments"
         icon={<Calendar className="w-5 h-5 text-blue-600" />}
         iconBgColor="bg-blue-100"
         defaultCollapsed={true}

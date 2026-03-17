@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Calendar as CalendarIcon,
-  Clock,
-  Plus,
   X,
   ChevronLeft,
   ChevronRight,
@@ -196,11 +193,6 @@ export default function DoctorSchedule() {
       }
       return newMonth;
     });
-  };
-
-  const isToday = (date: Date) => {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
   };
 
   if (loading) {

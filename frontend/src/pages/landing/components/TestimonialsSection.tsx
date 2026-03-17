@@ -79,11 +79,11 @@ const TestimonialsSection = () => {
   };
 
   return (
-    <section className="py-20 lg:py-28 bg-gradient-to-b from-slate-50/50 to-white overflow-hidden">
+    <section className="py-20 lg:py-28 bg-transparent relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-teal-50 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-teal-50/80 backdrop-blur-sm rounded-full mb-6 border border-teal-100/50">
             <Quote className="w-4 h-4 text-teal-600" />
             <span className="text-sm font-semibold text-teal-700">Testimonials</span>
           </div>
@@ -98,103 +98,65 @@ const TestimonialsSection = () => {
         {/* Testimonials Carousel */}
         <div className="relative">
           {/* Main Testimonial Card */}
-          <div className="max-w-4xl mx-auto">
-            <div className="relative bg-white rounded-3xl shadow-2xl shadow-slate-200/50 p-8 md:p-12 border border-slate-100">
-              {/* Quote Icon */}
-              <div className="absolute -top-6 left-8 w-14 h-14 bg-gradient-to-br from-blue-600 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25 rotate-3">
-                <Quote className="w-7 h-7 text-white" />
-              </div>
-
-              {/* Testimonial Content */}
-              <div className="pt-4">
-                {/* Stars */}
-                <div className="flex gap-1 mb-6">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-5 h-5 ${
-                        i < testimonials[currentIndex].rating
-                          ? 'text-amber-400 fill-current'
-                          : 'text-slate-200'
-                      }`}
-                    />
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 max-w-3xl mx-auto transition-all duration-500 border border-white/50">
+            {/* Quote Icon */}
+            <div className="absolute top-6 left-6 w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
+              <Quote className="w-6 h-6 text-teal-600" />
+            </div>
+            
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <img
+                src={testimonials[currentIndex].avatar}
+                alt={testimonials[currentIndex].name}
+                className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-lg"
+              />
+              <div className="flex-1 text-center md:text-left">
+                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                  <h3 className="font-bold text-slate-900">{testimonials[currentIndex].name}</h3>
+                  <p className="text-sm text-slate-500">{testimonials[currentIndex].role}</p>
+                </div>
+                <div className="flex items-center justify-center md:justify-start gap-1 mb-4">
+                  {[...Array(testimonials[currentIndex].rating)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 text-amber-400 fill-current" />
                   ))}
                 </div>
-
-                {/* Quote Text */}
-                <blockquote className="text-xl md:text-2xl text-slate-700 leading-relaxed mb-8 font-medium">
-                  "{testimonials[currentIndex].text}"
-                </blockquote>
-
-                {/* Author Info */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={testimonials[currentIndex].avatar}
-                      alt={testimonials[currentIndex].name}
-                      className="w-14 h-14 rounded-full object-cover ring-4 ring-slate-100"
-                    />
-                    <div>
-                      <h4 className="font-bold text-slate-900">
-                        {testimonials[currentIndex].name}
-                      </h4>
-                      <p className="text-sm text-slate-500">
-                        {testimonials[currentIndex].role}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-sm text-slate-400 hidden sm:block">
-                    {testimonials[currentIndex].date}
-                  </span>
-                </div>
+                <p className="text-slate-600 text-sm mt-2">{testimonials[currentIndex].date}</p>
               </div>
             </div>
+            
+            <p className="text-slate-700 text-lg leading-relaxed text-center md:text-left">
+              "{testimonials[currentIndex].text}"
+            </p>
           </div>
 
-          {/* Navigation Arrows */}
-          <button
-            onClick={goToPrevious}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-slate-600 hover:text-blue-600 hover:shadow-2xl transition-all z-10 hidden md:flex border border-slate-100"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-          <button
-            onClick={goToNext}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-slate-600 hover:text-blue-600 hover:shadow-2xl transition-all z-10 hidden md:flex border border-slate-100"
-          >
-            <ChevronRight className="w-6 h-6" />
-          </button>
-
-          {/* Dots Indicator */}
-          <div className="flex justify-center gap-2 mt-8">
-            {testimonials.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  index === currentIndex
-                    ? 'bg-blue-600 w-8'
-                    : 'bg-slate-300 hover:bg-slate-400 w-2.5'
-                }`}
-              />
-            ))}
+          {/* Navigation Buttons */}
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <button
+              onClick={goToPrevious}
+              className="p-3 rounded-full bg-white/80 hover:bg-white shadow-lg hover:shadow-slate-200/50 transition-all duration-300 border border-slate-100/50"
+            >
+              <ChevronLeft className="w-5 h-5 text-slate-600" />
+            </button>
+            <div className="flex gap-2">
+              {testimonials.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                    index === currentIndex
+                      ? 'bg-teal-500 scale-100'
+                      : 'bg-slate-200 hover:bg-slate-300'
+                  }`}
+                />
+              ))}
+            </div>
+            <button
+              onClick={goToNext}
+              className="p-3 rounded-full bg-white/80 hover:bg-white shadow-lg hover:shadow-slate-200/50 transition-all duration-300 border border-slate-100/50"
+            >
+              <ChevronRight className="w-5 h-5 text-slate-600" />
+            </button>
           </div>
-        </div>
-
-        {/* Mobile Navigation */}
-        <div className="flex justify-center gap-4 mt-6 md:hidden">
-          <button
-            onClick={goToPrevious}
-            className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-600 border border-slate-100"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={goToNext}
-            className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-600 border border-slate-100"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
         </div>
       </div>
     </section>

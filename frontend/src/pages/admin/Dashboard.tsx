@@ -62,7 +62,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       {/* Quick Actions */}
       <div className="flex justify-end gap-2">
         <Link
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Today's Stats - Small metric cards remain unchanged */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="hms-stats-grid">
         <StatCard
           title="Total Patients"
           value={stats?.todayStats.totalPatients || 0}
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Queue Status & Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="hms-content-grid lg:grid-cols-3">
         {/* Queue Status - Collapsible */}
         <div className="lg:col-span-2">
           <CollapsibleCard

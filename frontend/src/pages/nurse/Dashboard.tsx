@@ -74,7 +74,7 @@ export default function NurseDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       {/* Quick Actions */}
       <div className="flex justify-end gap-2">
         <Link to="/nurse/search" className="btn-secondary inline-flex items-center gap-2">
@@ -88,7 +88,7 @@ export default function NurseDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="hms-three-col">
         <StatCard
           title="Total Patients Today"
           value={stats?.totalPatients || 0}
@@ -113,7 +113,7 @@ export default function NurseDashboard() {
       </div>
 
       {/* Main Content Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="hms-two-col">
         {/* Waiting for Vitals Card */}
         <CollapsibleCard
           title="Waiting for Vitals"

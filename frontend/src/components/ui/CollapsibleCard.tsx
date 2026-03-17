@@ -1,28 +1,26 @@
-import { useState, ReactNode } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface CollapsibleCardProps {
   title: string;
   subtitle?: string;
-  icon?: ReactNode;
+  icon?: React.ReactNode;
   iconBgColor?: string;
-  children: ReactNode;
+  children: React.ReactNode;
   defaultCollapsed?: boolean;
   className?: string;
-  headerAction?: ReactNode;
-  collapsedContent?: ReactNode;
+  headerAction?: React.ReactNode;
+  collapsedContent?: React.ReactNode;
 }
 
 /**
  * CollapsibleCard - A reusable card component with collapse/expand functionality
- * 
- * Designed for large content cards in dashboards (tables, lists, charts, etc.)
- * Small metric cards (StatCard) should remain unchanged.
+ * Futuristic design with smooth animations and consistent styling
  * 
  * @param title - Card title text
  * @param subtitle - Optional subtitle/description shown in header
  * @param icon - Optional icon to display in header
- * @param iconBgColor - Background color class for icon container (e.g., 'bg-blue-100')
+ * @param iconBgColor - Background color class for icon container (e.g., 'bg-primary-100')
  * @param children - Card content (shown when expanded)
  * @param defaultCollapsed - Whether card starts collapsed (default: true)
  * @param className - Additional CSS classes for the card container
@@ -33,7 +31,7 @@ export default function CollapsibleCard({
   title,
   subtitle,
   icon,
-  iconBgColor = 'bg-secondary-100',
+  iconBgColor = 'bg-primary-100',
   children,
   defaultCollapsed = true,
   className = '',
@@ -48,20 +46,20 @@ export default function CollapsibleCard({
 
   return (
     <div
-      className={`bg-white rounded-xl border border-secondary-200 shadow-card overflow-hidden ${className}`}
+      className={`bg-white rounded-xl overflow-hidden transition-all duration-200 border border-navy-200 shadow-stat ${className}`}
     >
       {/* Card Header - Always visible */}
-      <div className="px-5 py-4 border-b border-secondary-100 flex items-center justify-between">
+      <div className="px-4 py-3 flex items-center justify-between border-b border-navy-100">
         <div className="flex items-center gap-3">
           {icon && (
-            <div className={`p-2 rounded-lg ${iconBgColor}`}>
+            <div className={`p-1.5 rounded-lg ${iconBgColor}`}>
               {icon}
             </div>
           )}
           <div>
-            <h2 className="text-base font-semibold text-secondary-900">{title}</h2>
+            <h2 className="text-sm font-semibold text-navy-900">{title}</h2>
             {subtitle && (
-              <p className="text-xs text-secondary-500">{subtitle}</p>
+              <p className="text-xs text-navy-500">{subtitle}</p>
             )}
           </div>
         </div>
@@ -76,18 +74,14 @@ export default function CollapsibleCard({
           {/* Collapse Toggle Button */}
           <button
             onClick={toggleCollapse}
-            className="
-              p-2 rounded-lg text-secondary-500 hover:text-secondary-700 
-              hover:bg-secondary-100 transition-all duration-200
-              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
-            "
+            className="p-1.5 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-navy-500 hover:bg-navy-100 hover:text-navy-900"
             aria-label={isCollapsed ? `Expand ${title}` : `Collapse ${title}`}
             title={isCollapsed ? 'Click to expand' : 'Click to collapse'}
           >
             {isCollapsed ? (
-              <ChevronDown className="w-5 h-5" />
+              <ChevronDown className="w-4 h-4" />
             ) : (
-              <ChevronUp className="w-5 h-5" />
+              <ChevronUp className="w-4 h-4" />
             )}
           </button>
         </div>
@@ -102,7 +96,7 @@ export default function CollapsibleCard({
       >
         {/* Optional collapsed content - shown when collapsed */}
         {isCollapsed && collapsedContent && (
-          <div className="p-4 bg-secondary-50/50 border-b border-secondary-100">
+          <div className="p-4 bg-background-soft border-b border-navy-100">
             {collapsedContent}
           </div>
         )}
@@ -115,7 +109,7 @@ export default function CollapsibleCard({
 
       {/* Collapsed Summary - shown when content is hidden */}
       {isCollapsed && collapsedContent && (
-        <div className="p-4 bg-secondary-50/50">
+        <div className="p-4 bg-background-soft">
           {collapsedContent}
         </div>
       )}
@@ -143,14 +137,14 @@ export function CollapsibleCardSimple({
 
   return (
     <div
-      className={`bg-white rounded-xl border border-secondary-200 shadow-card overflow-hidden ${className}`}
+      className={`bg-white rounded-xl overflow-hidden transition-all duration-200 border border-navy-200 shadow-stat ${className}`}
     >
       {/* Card Header */}
-      <div className="px-5 py-4 border-b border-secondary-100 flex items-center justify-between">
+      <div className="px-5 py-4 flex items-center justify-between border-b border-navy-100">
         <div>
-          <h2 className="text-base font-semibold text-secondary-900">{title}</h2>
+          <h2 className="text-base font-semibold text-navy-900">{title}</h2>
           {subtitle && (
-            <p className="text-xs text-secondary-500">{subtitle}</p>
+            <p className="text-xs text-navy-500">{subtitle}</p>
           )}
         </div>
         
@@ -163,11 +157,7 @@ export function CollapsibleCardSimple({
           
           <button
             onClick={toggleCollapse}
-            className="
-              p-2 rounded-lg text-secondary-500 hover:text-secondary-700 
-              hover:bg-secondary-100 transition-all duration-200
-              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
-            "
+            className="p-2 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-navy-500 hover:bg-navy-100 hover:text-navy-900"
             aria-label={isCollapsed ? `Expand ${title}` : `Collapse ${title}`}
           >
             {isCollapsed ? (

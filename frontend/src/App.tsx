@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/auth.store';
 
 // Layouts
-import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 
 // Landing Page
@@ -41,6 +40,9 @@ import PatientSearch from './pages/nurse/PatientSearch';
 import PendingPrescriptions from './pages/pharmacy/PendingPrescriptions';
 import Inventory from './pages/pharmacy/Inventory';
 import DispenseMedicine from './pages/pharmacy/DispenseMedicine';
+import Bills from './pages/pharmacy/Bills';
+import Expenses from './pages/pharmacy/Expenses';
+import PharmacyReports from './pages/pharmacy/Reports';
 
 // Lab Pages
 import LabOrders from './pages/lab/LabOrders';
@@ -144,37 +146,45 @@ function App() {
       {/* Landing Page - Public Route */}
       <Route path="/" element={<LandingPage />} />
 
-      {/* Auth Routes - Only accessible when not authenticated */}
+      {/* ============================================
+          AUTH ROUTES
+          ============================================
+          These routes are only accessible when not authenticated.
+          
+          DESIGN DECISION: Auth pages (Login, PatientLogin) use their own
+          full-width two-column layouts instead of being wrapped in AuthLayout.
+          This allows each auth page to have complete control over its visual
+          presentation, including animated backgrounds and responsive layouts.
+          
+          If shared auth functionality is needed in the future, consider:
+          - Creating a useAuthPage() hook for shared logic
+          - Using a context provider for shared state
+          ============================================ */}
       <Route
         path="/login"
         element={
           <PublicRoute>
-            <AuthLayout />
+            <Login />
           </PublicRoute>
         }
-      >
-        <Route index element={<Login />} />
-      </Route>
-      <Route
-        path="/signup"
-        element={
-          <PublicRoute>
-            <AuthLayout />
-          </PublicRoute>
-        }
-      >
-        <Route index element={<PatientLogin />} />
-      </Route>
+      />
       <Route
         path="/patient-login"
         element={
           <PublicRoute>
-            <AuthLayout />
+            <PatientLogin />
           </PublicRoute>
         }
-      >
-        <Route index element={<PatientLogin />} />
-      </Route>
+      />
+      {/* Signup route uses PatientLogin component with signup mode (patient self-registration) */}
+      <Route
+        path="/signup"
+        element={
+          <PublicRoute>
+            <PatientLogin />
+          </PublicRoute>
+        }
+      />
 
       {/* Admin Routes */}
       <Route
@@ -242,6 +252,9 @@ function App() {
         <Route path="prescriptions" element={<PendingPrescriptions />} />
         <Route path="dispense/:prescriptionId" element={<DispenseMedicine />} />
         <Route path="inventory" element={<Inventory />} />
+        <Route path="bills" element={<Bills />} />
+        <Route path="expenses" element={<Expenses />} />
+        <Route path="reports" element={<PharmacyReports />} />
       </Route>
 
       {/* Lab Routes */}

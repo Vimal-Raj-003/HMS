@@ -53,7 +53,7 @@ export default function LabDashboard() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-5">
             {/* Quick Actions */}
             <div className="flex justify-end gap-2">
                 <Link to="/lab/orders" className="btn-secondary inline-flex items-center gap-2">
@@ -67,75 +67,75 @@ export default function LabDashboard() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
+                    <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-lg bg-orange-100">
-                            <ClipboardList className="w-5 h-5 text-orange-600" />
+                            <ClipboardList className="w-4 h-4 text-orange-600" />
                         </div>
                         <div>
                             <p className="text-xs text-secondary-500">Pending</p>
-                            <p className="text-xl font-bold text-secondary-900">{stats?.pendingOrders || 0}</p>
+                            <p className="text-lg font-bold text-secondary-900">{stats?.pendingOrders || 0}</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-3">
+                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
+                    <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-lg bg-blue-100">
-                            <TestTube className="w-5 h-5 text-blue-600" />
+                            <TestTube className="w-4 h-4 text-blue-600" />
                         </div>
                         <div>
                             <p className="text-xs text-secondary-500">Collected</p>
-                            <p className="text-xl font-bold text-secondary-900">{stats?.samplesCollected || 0}</p>
+                            <p className="text-lg font-bold text-secondary-900">{stats?.samplesCollected || 0}</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-3">
+                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
+                    <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-lg bg-purple-100">
-                            <FileText className="w-5 h-5 text-purple-600" />
+                            <FileText className="w-4 h-4 text-purple-600" />
                         </div>
                         <div>
-                            <p className="text-xs text-secondary-500">Results Pending</p>
-                            <p className="text-xl font-bold text-secondary-900">{stats?.resultsPending || 0}</p>
+                            <p className="text-xs text-secondary-500">Results</p>
+                            <p className="text-lg font-bold text-secondary-900">{stats?.resultsPending || 0}</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-3">
+                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
+                    <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-lg bg-green-100">
-                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            <CheckCircle className="w-4 h-4 text-green-600" />
                         </div>
                         <div>
                             <p className="text-xs text-secondary-500">Completed</p>
-                            <p className="text-xl font-bold text-secondary-900">{stats?.completedToday || 0}</p>
+                            <p className="text-lg font-bold text-secondary-900">{stats?.completedToday || 0}</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-3">
+                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
+                    <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-lg bg-red-100">
-                            <AlertTriangle className="w-5 h-5 text-red-600" />
+                            <AlertTriangle className="w-4 h-4 text-red-600" />
                         </div>
                         <div>
                             <p className="text-xs text-secondary-500">Critical</p>
-                            <p className="text-xl font-bold text-secondary-900">{stats?.criticalAlerts || 0}</p>
+                            <p className="text-lg font-bold text-secondary-900">{stats?.criticalAlerts || 0}</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-3">
+                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
+                    <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-lg bg-yellow-100">
-                            <IndianRupee className="w-5 h-5 text-yellow-600" />
+                            <IndianRupee className="w-4 h-4 text-yellow-600" />
                         </div>
                         <div>
                             <p className="text-xs text-secondary-500">Revenue</p>
-                            <p className="text-xl font-bold text-secondary-900">₹{(stats?.todayRevenue || 0).toLocaleString()}</p>
+                            <p className="text-lg font-bold text-secondary-900">₹{(stats?.todayRevenue || 0).toLocaleString()}</p>
                         </div>
                     </div>
                 </div>

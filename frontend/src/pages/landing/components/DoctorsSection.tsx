@@ -66,11 +66,11 @@ const doctors = [
 
 const DoctorsSection = () => {
   return (
-    <section id="doctors" className="py-20 lg:py-28 bg-slate-50/30">
+    <section id="doctors" className="py-20 lg:py-28 bg-transparent relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50/80 backdrop-blur-sm rounded-full mb-6 border border-blue-100/50">
             <Star className="w-4 h-4 text-blue-600" />
             <span className="text-sm font-semibold text-blue-700">Expert Care Team</span>
           </div>
@@ -83,44 +83,49 @@ const DoctorsSection = () => {
           </p>
         </div>
 
-        {/* Doctors Grid - Stable layout */}
+        {/* Doctors Grid - Enhanced with smooth hover animations */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {doctors.map((doctor, index) => (
             <div
               key={index}
-              className="group bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/50 hover:border-transparent transition-all duration-300 flex flex-col"
+              className="group bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-100/50 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/50 hover:border-transparent transition-all duration-500 flex flex-col transform hover:-translate-y-2 hover:scale-[1.02]"
             >
-              {/* Image Section - Fixed height */}
+              {/* Image Section - Fixed height with enhanced zoom */}
               <div className="relative h-52 overflow-hidden bg-slate-100 flex-shrink-0">
                 <img
                   src={doctor.image}
                   alt={doctor.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
-                {/* Availability Badge */}
-                <div className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                {/* Availability Badge with pulse animation */}
+                <div className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm transition-all duration-300 ${
                   doctor.available 
-                    ? 'bg-emerald-100 text-emerald-700' 
-                    : 'bg-slate-100 text-slate-600'
+                    ? 'bg-emerald-100/90 text-emerald-700 shadow-lg shadow-emerald-500/20' 
+                    : 'bg-slate-100/90 text-slate-600'
                 }`}>
-                  {doctor.available ? 'Available Today' : 'Fully Booked'}
+                  <span className="flex items-center gap-1.5">
+                    {doctor.available && (
+                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                    )}
+                    {doctor.available ? 'Available Today' : 'Fully Booked'}
+                  </span>
                 </div>
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                {/* Gradient Overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               </div>
 
               {/* Content Section - Flexible */}
               <div className="p-5 flex flex-col flex-grow">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
+                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-700 transition-colors duration-300">
                       {doctor.name}
                     </h3>
                     <p className="text-blue-600 font-medium text-sm">
                       {doctor.specialization}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-lg">
+                  <div className="flex items-center gap-1 bg-amber-50/80 backdrop-blur-sm px-2.5 py-1 rounded-lg shadow-sm group-hover:shadow-md group-hover:shadow-amber-500/10 transition-all duration-300">
                     <Star className="w-4 h-4 text-amber-400 fill-current" />
                     <span className="text-sm font-bold text-amber-700">{doctor.rating}</span>
                   </div>
@@ -138,16 +143,16 @@ const DoctorsSection = () => {
                   </div>
                 </div>
 
-                {/* Book Appointment Button - Links to Patient Login */}
+                {/* Book Appointment Button - Enhanced hover effects */}
                 <Link
                   to="/patient-login"
-                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition-all duration-300 mt-auto ${
+                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition-all duration-300 mt-auto group/btn ${
                     doctor.available
-                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 hover:shadow-xl'
-                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-600'
                   }`}
                 >
-                  <Calendar className="w-4 h-4" />
+                  <Calendar className="w-4 h-4 group-hover/btn:scale-110 transition-transform duration-300" />
                   {doctor.available ? 'Book Appointment' : 'Join Waitlist'}
                 </Link>
               </div>
@@ -159,10 +164,10 @@ const DoctorsSection = () => {
         <div className="text-center mt-12 lg:mt-16">
           <Link
             to="/patient-login"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-xl shadow-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/30 group"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-xl shadow-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/30 group hover:-translate-y-1"
           >
             View All Doctors
-            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
           </Link>

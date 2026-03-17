@@ -19,7 +19,6 @@ import {
   Clock,
   Phone,
   AlertCircle,
-  CheckCircle,
 } from 'lucide-react';
 import api from '../../lib/api';
 
