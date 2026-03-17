@@ -1,0 +1,43 @@
+services:
+  # Backend API Service
+  - type: web
+    name: hms-backend
+    env: node
+    region: oregon # or singapore for Asia
+    plan: free # Upgrade to starter for production
+    branch: main
+    dir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # Set manually to your Neon PostgreSQL connection string
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: hms-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      - key: FRONTEND_URL
+        value: https://your-frontend.vercel.app # Update this
+
+  # Redis for caching and sessions
+  - type: redis
+    name: hms-redis
+    region: oregon
+    plan: free # Upgrade for production
+    maxmemoryPolicy: allkeys-lru
+
+# Note: We recommend using Neon (neon.tech) for PostgreSQL instead of Render's managed database
+# Neon offers better free tier limits (0.5 GB storage, no sleep after inactivity)
+# Create a Neon database and set the DATABASE_URL environment variable manually in Render dashboard

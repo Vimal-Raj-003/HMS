@@ -29,30 +29,61 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
+
+// Parse allowed origins from environment (comma-separated for multiple domains)
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  : ['http://localhost:3000'];
+
+// Socket.IO configuration
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
+    credentials: true,
   },
+  // Production optimizations
+  ...(process.env.NODE_ENV === 'production' && {
+    pingTimeout: 60000,
+    pingInterval: 25000,
+  }),
 });
 
 // Initialize Socket.IO
 initializeSocket(io);
 
-// Middleware
+// CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Use exact origin matching only (no substring matching to prevent bypass attacks)
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(null, false);
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Tenant middleware for multi-tenancy
 app.use(tenantMiddleware);
 
-// Health check
+// Health check (important for Render/other cloud providers)
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+  });
 });
 
 // API Routes
@@ -79,6 +110,7 @@ httpServer.listen(PORT, () => {
   console.log(`🚀 HMS Server running on port ${PORT}`);
   console.log(`📡 Socket.IO enabled`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔒 Allowed origins: ${allowedOrigins.join(', ')}`);
 });
 
 export { io };
