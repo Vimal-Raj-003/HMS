@@ -1,0 +1,974 @@
+// HMS Database Schema
+// Based on comprehensive module specifications
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MULTI-TENANCY - Hospital/Tenant Management
+// ============================================
+
+model Hospital {
+  id            String   @id @default(uuid())
+  name          String
+  code          String   @unique // Unique hospital code
+  subdomain     String?  @unique // e.g., cityhospital.vims.com
+  logo          String?
+  address       String
+  city          String
+  state         String
+  pincode       String
+  gstNumber     String?  @map("gst_number")
+  contactEmail  String?  @map("contact_email")
+  contactPhone  String?  @map("contact_phone")
+  isActive      Boolean  @default(true) @map("is_active")
+  planType      String   @default("standard") @map("plan_type") // basic, standard, premium
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users              User[]
+  patients           Patient[]
+  appointments       Appointment[]
+  queueEntries       QueueEntry[]
+  consultations      Consultation[]
+  prescriptions      Prescription[]
+  labOrders          LabOrder[]
+  labTests           LabTest[]
+  medicines          Medicine[]
+  inventory          Inventory[]
+  pharmacyDispenses  PharmacyDispense[]
+  pharmacyBills      PharmacyBill[]
+  pharmacyExpenses   PharmacyExpense[]
+  pharmacyStockTransactions PharmacyStockTransaction[]
+  bills              Bill[]
+  payments           Payment[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  doctorTimeOffs     DoctorTimeOff[]
+  patientVisits      PatientVisit[]
+  masterBills        MasterBill[]
+  icd10Codes         ICD10Code[]
+  vitals             Vitals[]
+  patientDocuments   PatientDocument[]
+
+  @@map("hospitals")
+}
+
+// ============================================
+// USER MANAGEMENT - Staff Accounts
+// ============================================
+
+enum UserRole {
+  ADMIN
+  DOCTOR
+  NURSE
+  PHARMACIST
+  LAB_TECH
+  RECEPTIONIST
+}
+
+model User {
+  id            String   @id @default(uuid())
+  hospitalId    String   @map("hospital_id")
+  email         String
+  password      String
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  phone         String
+  role          UserRole
+  isActive      Boolean  @default(true) @map("is_active")
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Doctor-specific fields
+  qualifications    String?
+  specialty         String?
+  consultationFee   Decimal? @map("consultation_fee") @db.Decimal(10, 2)
+  payoutPercentage  Decimal? @map("payout_percentage") @db.Decimal(5, 2)
+  availableDays     String?  @map("available_days") // JSON array: ["monday", "tuesday"]
+  availableHours    String?  @map("available_hours") // JSON: {"start": "09:00", "end": "17:00"}
+  roomNumber        String?  @map("room_number")
+  bio              String?
+
+  // Relations
+  hospital          Hospital          @relation(fields: [hospitalId], references: [id])
+  refreshTokens     RefreshToken[]
+  appointments      Appointment[]
+  queueEntries      QueueEntry[]
+  consultations     Consultation[]
+  prescriptions     Prescription[]
+  labOrders         LabOrder[]
+  vitals            Vitals[]
+  pharmacyDispenses PharmacyDispense[]
+  auditLogs         AuditLog[]
+  doctorTimeOffs    DoctorTimeOff[]
+  notifications     Notification[]
+
+  @@unique([hospitalId, email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ============================================
+// PATIENT MANAGEMENT
+// ============================================
+
+model Patient {
+  id                    String   @id @default(uuid())
+  hospitalId            String   @map("hospital_id")
+  patientNumber         String   @map("patient_number") // PT-001234
+
+  // Demographics
+  firstName             String   @map("first_name")
+  lastName              String   @map("last_name")
+  phone                 String
+  email                 String?
+  dateOfBirth           DateTime @map("date_of_birth")
+  gender                String   // male, female, other
+  bloodGroup            String?  @map("blood_group")
+  address               String?
+  city                  String?
+  state                 String?
+  pincode               String?
+  emergencyContact      String?  @map("emergency_contact")
+  emergencyPhone        String?  @map("emergency_phone")
+  profilePhoto          String?  @map("profile_photo")
+
+  // ABDM Integration
+  abhaId                String?  @map("abha_id")
+  abhaAddress           String?  @map("abha_address")
+  abhaLinkedAt          DateTime? @map("abha_linked_at")
+  abdmConsentId         String?  @map("abdm_consent_id")
+
+  // Medical Info
+  weight                Decimal? @db.Decimal(5, 2) // kg - mandatory for appointment booking
+  preExistingConditions String[] @map("pre_existing_conditions")
+  allergies             String[]
+
+  // Timestamps
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hospital              Hospital          @relation(fields: [hospitalId], references: [id])
+  otpVerifications      OtpVerification[]
+  appointments          Appointment[]
+  queueEntries          QueueEntry[]
+  vitals                Vitals[]
+  consultations         Consultation[]
+  prescriptions         Prescription[]
+  labOrders             LabOrder[]
+  pharmacyDispenses     PharmacyDispense[]
+  pharmacyBills         PharmacyBill[]
+  bills                 Bill[]
+  payments              Payment[]
+  dependents            Dependent[]
+  patientVisits         PatientVisit[]
+  masterBills           MasterBill[]
+  medicalHistory        MedicalHistory[]
+  notifications         Notification[]
+  documents             PatientDocument[]
+
+  @@unique([hospitalId, patientNumber])
+  @@map("patients")
+}
+
+model OtpVerification {
+  id          String   @id @default(uuid())
+  patientId   String?  @map("patient_id")
+  mobile      String
+  otp         String
+  purpose     String   // login, registration, verify
+  isVerified  Boolean  @default(false) @map("is_verified")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  patient     Patient? @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("otp_verifications")
+}
+
+model Dependent {
+  id                String   @id @default(uuid())
+  patientId         String   @map("patient_id") // Parent/guardian
+  relationship      String   // son, daughter, father, mother, spouse
+  firstName         String   @map("first_name")
+  lastName          String   @map("last_name")
+  dateOfBirth       DateTime @map("date_of_birth")
+  gender            String
+  bloodGroup        String?  @map("blood_group")
+  preExistingConditions String[] @map("pre_existing_conditions")
+  allergies         String[]
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("dependents")
+}
+
+model MedicalHistory {
+  id              String   @id @default(uuid())
+  patientId       String   @map("patient_id")
+  condition       String
+  diagnosedDate   DateTime? @map("diagnosed_date")
+  status          String   // active, resolved, chronic
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  patient         Patient  @relation(fields: [patientId], references: [id])
+
+  @@map("medical_history")
+}
+
+// Patient Uploaded Documents (Medical Records, Lab Reports, etc.)
+model PatientDocument {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  patientId       String   @map("patient_id")
+  appointmentId   String?  @map("appointment_id") // Optional link to appointment
+  documentName    String   @map("document_name")
+  documentType    String   @map("document_type") // MEDICAL_RECORD, LAB_REPORT, PRESCRIPTION, OTHER
+  fileType        String   @map("file_type") // application/pdf, image/png, image/jpeg
+  fileData        String?  @map("file_data") @db.Text // Base64 encoded file data (stored in DB)
+  fileUrl         String   @map("file_url") @db.Text // URL or base64 data
+  fileSize        Int      @map("file_size") // in bytes
+  uploadedBy      String   @map("uploaded_by") // PATIENT, DOCTOR, SYSTEM
+  uploadedById    String?  @map("uploaded_by_id") // ID of the user who uploaded
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  hospital        Hospital     @relation(fields: [hospitalId], references: [id])
+  patient         Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([appointmentId])
+  @@map("patient_documents")
+}
+
+// ============================================
+// APPOINTMENT & QUEUE MANAGEMENT
+// ============================================
+
+enum AppointmentStatus {
+  PENDING_APPROVAL
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
+  NO_SHOW
+}
+
+enum AppointmentType {
+  WALK_IN
+  ONLINE
+}
+
+model Appointment {
+  id              String           @id @default(uuid())
+  hospitalId      String           @map("hospital_id")
+  patientId       String           @map("patient_id")
+  doctorId        String           @map("doctor_id")
+  appointmentDate DateTime         @map("appointment_date")
+  startTime       String           @map("start_time") // HH:mm format
+  endTime         String?          @map("end_time")
+  status          AppointmentStatus @default(SCHEDULED)
+  type            AppointmentType  @default(ONLINE)
+  tokenNumber     Int?             @map("token_number")
+  chiefComplaint  String?          @map("chief_complaint")
+  notes           String?
+  cancelledReason String?          @map("cancelled_reason")
+  cancelledAt     DateTime?        @map("cancelled_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  hospital        Hospital         @relation(fields: [hospitalId], references: [id])
+  patient         Patient          @relation(fields: [patientId], references: [id])
+  doctor          User             @relation(fields: [doctorId], references: [id])
+  queueEntry      QueueEntry?
+  vitals          Vitals?
+  consultation    Consultation?
+  documents       PatientDocument[]
+
+  @@unique([hospitalId, appointmentDate, tokenNumber])
+  @@map("appointments")
+}
+
+model QueueEntry {
+  id                String   @id @default(uuid())
+  hospitalId        String   @map("hospital_id")
+  appointmentId     String?  @map("appointment_id") @unique
+  patientId         String   @map("patient_id")
+  doctorId          String?  @map("doctor_id")
+  queueNumber       Int      @map("queue_number")
+  status            String   @default("WAITING") // WAITING, CALLED, IN_VITALS, VITALS_DONE, WITH_DOCTOR, HOLD, SKIPPED, COMPLETED, CANCELLED
+  priority          Int      @default(0) // 0=normal, 1=high, 2=critical
+  
+  // Enhanced Queue Fields
+  holdCount         Int      @default(0) @map("hold_count")
+  skipCount         Int      @default(0) @map("skip_count")
+  holdReason        String?  @map("hold_reason")
+  holdStartedAt     DateTime? @map("hold_started_at")
+  calledAt          DateTime? @map("called_at")
+  vitalsStartedAt   DateTime? @map("vitals_started_at")
+  vitalsDoneAt      DateTime? @map("vitals_done_at")
+  doctorStartedAt   DateTime? @map("doctor_started_at")
+  completedAt       DateTime? @map("completed_at")
+  originalPosition  Int?     @map("original_position")
+  currentPosition   Int?     @map("current_position")
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hospital          Hospital    @relation(fields: [hospitalId], references: [id])
+  appointment       Appointment? @relation(fields: [appointmentId], references: [id])
+  patient           Patient     @relation(fields: [patientId], references: [id])
+  doctor            User?       @relation(fields: [doctorId], references: [id])
+
+  @@map("queue_entries")
+}
+
+model DoctorTimeOff {
+  id                String   @id @default(uuid())
+  hospitalId        String   @map("hospital_id")
+  doctorId          String   @map("doctor_id")
+  startDate         DateTime @map("start_date")
+  endDate           DateTime @map("end_date")
+  reason            String?
+  isRecurring       Boolean  @default(false) @map("is_recurring")
+  recurrencePattern String?  @map("recurrence_pattern") // e.g., "weekly:wednesday"
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  hospital          Hospital @relation(fields: [hospitalId], references: [id])
+  doctor            User     @relation(fields: [doctorId], references: [id])
+
+  @@map("doctor_time_offs")
+}
+
+// ============================================
+// PATIENT VISITS & CENTRALIZED BILLING
+// ============================================
+
+model PatientVisit {
+  id              String    @id @default(uuid())
+  visitNumber     String    @unique @map("visit_number") // VIS-2026-000123
+  hospitalId      String    @map("hospital_id")
+  patientId       String    @map("patient_id")
+  checkInAt       DateTime  @default(now()) @map("check_in_at")
+  checkOutAt      DateTime? @map("check_out_at")
+  status          String    @default("active") // active, discharged, cancelled
+  masterBillId    String?   @map("master_bill_id")
+
+  hospital        Hospital  @relation(fields: [hospitalId], references: [id])
+  patient         Patient   @relation(fields: [patientId], references: [id])
+  masterBill      MasterBill?
+  consultations   Consultation[]
+  labOrders       LabOrder[]
+  pharmacyDispenses PharmacyDispense[]
+
+  @@map("patient_visits")
+}
+
+model MasterBill {
+  id                String    @id @default(uuid())
+  billNumber        String    @unique @map("bill_number") // MB-2026-000123
+  visitId           String    @unique @map("visit_id")
+  hospitalId        String    @map("hospital_id")
+  patientId         String    @map("patient_id")
+
+  // Running totals
+  consultationTotal Decimal   @default(0) @map("consultation_total") @db.Decimal(12, 2)
+  labTotal          Decimal   @default(0) @map("lab_total") @db.Decimal(12, 2)
+  pharmacyTotal     Decimal   @default(0) @map("pharmacy_total") @db.Decimal(12, 2)
+  procedureTotal    Decimal   @default(0) @map("procedure_total") @db.Decimal(12, 2)
+  otherTotal        Decimal   @default(0) @map("other_total") @db.Decimal(12, 2)
+
+  subtotal          Decimal   @default(0) @db.Decimal(12, 2)
+  discount          Decimal   @default(0) @db.Decimal(12, 2)
+  tax               Decimal   @default(0) @db.Decimal(12, 2)
+  totalAmount       Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
+  amountPaid        Decimal   @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  balanceDue        Decimal   @default(0) @map("balance_due") @db.Decimal(12, 2)
+
+  status            String    @default("open") // open, partial, settled, refunded
+  generatedAt       DateTime  @default(now()) @map("generated_at")
+  settledAt         DateTime? @map("settled_at")
+
+  lineItems         MasterBillLineItem[]
+  payments          Payment[]
+  visit             PatientVisit @relation(fields: [visitId], references: [id])
+  hospital          Hospital  @relation(fields: [hospitalId], references: [id])
+  patient           Patient   @relation(fields: [patientId], references: [id])
+
+  @@map("master_bills")
+}
+
+model MasterBillLineItem {
+  id              String   @id @default(uuid())
+  masterBillId    String   @map("master_bill_id")
+  itemType        String   // CONSULTATION, LAB, PHARMACY, PROCEDURE
+  itemReference   String   @map("item_reference") // UUID of the actual item
+  description     String
+  quantity        Int      @default(1)
+  rate            Decimal  @db.Decimal(10, 2)
+  amount          Decimal  @db.Decimal(12, 2)
+  status          String   @default("pending") // pending, paid, cancelled
+  addedAt         DateTime @default(now()) @map("added_at")
+
+  masterBill      MasterBill @relation(fields: [masterBillId], references: [id])
+
+  @@map("master_bill_line_items")
+}
+
+// ============================================
+// CLINICAL DATA - Vitals & Consultations
+// ============================================
+
+model Vitals {
+  id                    String   @id @default(uuid())
+  hospitalId            String   @map("hospital_id")
+  patientId             String   @map("patient_id")
+  appointmentId         String?  @map("appointment_id") @unique
+  recordedBy            String   @map("recorded_by") // Nurse ID
+
+  // Vital Signs
+  bloodPressureSystolic Int?     @map("blood_pressure_systolic")
+  bloodPressureDiastolic Int?    @map("blood_pressure_diastolic")
+  heartRate             Int?     @map("heart_rate")
+  temperature           Decimal? @db.Decimal(4, 1)
+  weight                Decimal? @db.Decimal(5, 2) // kg
+  height                Decimal? @db.Decimal(5, 2) // cm
+  bmi                   Decimal? @db.Decimal(4, 1)
+  bloodSugarFasting     Int?     @map("blood_sugar_fasting")
+  bloodSugarRandom      Int?     @map("blood_sugar_random")
+  bloodSugarPostMeal    Int?     @map("blood_sugar_post_meal")
+  oxygenSaturation      Int?     @map("oxygen_saturation") // SpO2 %
+  respiratoryRate       Int?     @map("respiratory_rate")
+
+  notes                 String?
+  recordedAt            DateTime @default(now()) @map("recorded_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hospital              Hospital @relation(fields: [hospitalId], references: [id])
+  patient               Patient  @relation(fields: [patientId], references: [id])
+  appointment           Appointment? @relation(fields: [appointmentId], references: [id])
+  nurse                 User     @relation(fields: [recordedBy], references: [id])
+
+  @@map("vitals")
+}
+
+model Consultation {
+  id                      String   @id @default(uuid())
+  hospitalId              String   @map("hospital_id")
+  patientId               String   @map("patient_id")
+  appointmentId           String?  @map("appointment_id") @unique
+  doctorId                String   @map("doctor_id")
+  visitId                 String?  @map("visit_id")
+
+  // Clinical Notes
+  chiefComplaint          String?  @map("chief_complaint")
+  presentIllnessHistory   String?  @map("present_illness_history")
+  examinationFindings     String?  @map("examination_findings")
+  provisionalDiagnosis    String?  @map("provisional_diagnosis")
+  provisionalDiagnosisCodes String[] @map("provisional_diagnosis_codes") // ICD-10 codes
+  finalDiagnosis          String?  @map("final_diagnosis")
+  finalDiagnosisCodes     String[] @map("final_diagnosis_codes") // ICD-10 codes
+  advice                  String?
+  followUpDate            DateTime? @map("follow_up_date")
+
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hospital                Hospital @relation(fields: [hospitalId], references: [id])
+  patient                 Patient  @relation(fields: [patientId], references: [id])
+  appointment             Appointment? @relation(fields: [appointmentId], references: [id])
+  doctor                  User     @relation(fields: [doctorId], references: [id])
+  visit                   PatientVisit? @relation(fields: [visitId], references: [id])
+  prescriptions           Prescription[]
+  labOrders               LabOrder[]
+
+  @@map("consultations")
+}
+
+model ICD10Code {
+  id          String   @id @default(uuid())
+  hospitalId  String   @map("hospital_id")
+  code        String
+  description String
+  category    String
+  subCategory String?  @map("sub_category")
+  isActive    Boolean  @default(true) @map("is_active")
+
+  hospital    Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@unique([hospitalId, code])
+  @@map("icd10_codes")
+}
+
+// ============================================
+// PRESCRIPTIONS
+// ============================================
+
+model Prescription {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  patientId       String   @map("patient_id")
+  consultationId  String   @map("consultation_id")
+  doctorId        String   @map("doctor_id")
+  prescriptionNumber String @unique @map("prescription_number") // PRX-001234
+  notes           String?
+  status          String   @default("pending") // pending, partial, dispensed, cancelled
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hospital        Hospital         @relation(fields: [hospitalId], references: [id])
+  patient         Patient          @relation(fields: [patientId], references: [id])
+  consultation    Consultation     @relation(fields: [consultationId], references: [id])
+  doctor          User             @relation(fields: [doctorId], references: [id])
+  items           PrescriptionItem[]
+  pharmacyDispenses PharmacyDispense[]
+  pharmacyBills   PharmacyBill[]
+
+  @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  id              String   @id @default(uuid())
+  prescriptionId  String   @map("prescription_id")
+  medicineId      String   @map("medicine_id")
+  dosage          String   // e.g., "500mg"
+  frequency       String   // OD, BD, TDS, QID, SOS, PRN
+  durationDays    Int      @map("duration_days")
+  quantity        Int
+  instructions    String?
+  isDispensed     Boolean  @default(false) @map("is_dispensed")
+  dispensedQuantity Int?   @map("dispensed_quantity")
+
+  // Substitution tracking
+  substitutedMedicineId String? @map("substituted_medicine_id")
+  substitutionReason    String? @map("substitution_reason")
+
+  prescription    Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medicine        Medicine     @relation(fields: [medicineId], references: [id])
+
+  @@map("prescription_items")
+}
+
+// ============================================
+// LABORATORY
+// ============================================
+
+model LabTest {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  code            String   // e.g., CBC, LIPID
+  name            String
+  category        String   // Hematology, Biochemistry, etc.
+  price           Decimal  @db.Decimal(10, 2)
+  turnaroundHours Int      @map("turnaround_hours")
+  description     String?
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Test Parameters (JSON array of parameters)
+  parameters      String   // JSON: [{name, unit, referenceRange}]
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+  labOrderItems   LabOrderItem[]
+
+  @@unique([hospitalId, code])
+  @@map("lab_tests")
+}
+
+model LabOrder {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  patientId       String   @map("patient_id")
+  consultationId  String?  @map("consultation_id")
+  doctorId        String?  @map("doctor_id")
+  visitId         String?  @map("visit_id")
+  orderNumber     String   @unique @map("order_number") // LAB-001234
+  priority        String   @default("normal") // normal, urgent, stat
+  status          String   @default("pending") // pending, sample_collected, in_progress, completed, cancelled
+  notes           String?
+  sampleId        String?  @map("sample_id")
+  sampleType      String?  @map("sample_type")
+  sampleCollectedAt DateTime? @map("sample_collected_at")
+  collectedBy     String?  @map("collected_by")
+  reportUrl       String?  @map("report_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hospital        Hospital       @relation(fields: [hospitalId], references: [id])
+  patient         Patient        @relation(fields: [patientId], references: [id])
+  consultation    Consultation?  @relation(fields: [consultationId], references: [id])
+  doctor          User?          @relation(fields: [doctorId], references: [id])
+  visit           PatientVisit?  @relation(fields: [visitId], references: [id])
+  items           LabOrderItem[]
+
+  @@map("lab_orders")
+}
+
+model LabOrderItem {
+  id              String   @id @default(uuid())
+  orderId         String   @map("order_id")
+  testId          String   @map("test_id")
+  status          String   @default("pending") // pending, in_progress, completed
+  resultValue     String?  @map("result_value")
+  unit            String?
+  referenceRange  String?  @map("reference_range")
+  interpretation  String?  // normal, abnormal, critical
+  technicianNotes String?  @map("technician_notes")
+  completedAt     DateTime? @map("completed_at")
+
+  // Individual parameter results (JSON)
+  parameterResults String? @map("parameter_results")
+
+  order           LabOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  test            LabTest  @relation(fields: [testId], references: [id])
+
+  @@map("lab_order_items")
+}
+
+// ============================================
+// PHARMACY & INVENTORY
+// ============================================
+
+model Medicine {
+  id                  String   @id @default(uuid())
+  hospitalId          String   @map("hospital_id")
+  name                String
+  genericName         String?  @map("generic_name")
+  brand               String?
+  molecule            String?
+  category            String   // tablet, syrup, injection, etc.
+  dosageForm          String?  @map("dosage_form")
+  strength            String?
+  unit                String   // tablet, ml, etc.
+  price               Decimal  @db.Decimal(10, 2)
+  gstPercentage       Decimal  @default(5) @map("gst_percentage") @db.Decimal(4, 1)
+  requiresPrescription Boolean @default(false) @map("requires_prescription")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  // Substitution fields
+  moleculeId          String?  @map("molecule_id")
+  therapeuticClassId  String?  @map("therapeutic_class_id")
+
+  hospital            Hospital @relation(fields: [hospitalId], references: [id])
+  inventory           Inventory[]
+  prescriptionItems   PrescriptionItem[]
+  dispensingItems     DispensingItem[]
+  stockTransactions   PharmacyStockTransaction[]
+  billItems           PharmacyBillItem[]
+
+  @@unique([hospitalId, name, strength])
+  @@map("medicines")
+}
+
+model Inventory {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  medicineId      String   @map("medicine_id")
+  batchNumber     String   @map("batch_number")
+  quantity        Int
+  reorderLevel    Int      @map("reorder_level")
+  expiryDate      DateTime @map("expiry_date")
+  purchasePrice   Decimal  @map("purchase_price") @db.Decimal(10, 2)
+  mrp             Decimal  @db.Decimal(10, 2)
+  supplier        String?
+  location        String?  // shelf/bin location
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+  medicine        Medicine @relation(fields: [medicineId], references: [id])
+  stockTransactions PharmacyStockTransaction[]
+
+  @@map("inventory")
+}
+
+model PharmacyDispense {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  patientId       String   @map("patient_id")
+  prescriptionId  String?  @map("prescription_id")
+  visitId         String?  @map("visit_id")
+  dispenseNumber  String   @unique @map("dispense_number") // DSP-001234
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
+  discount        Decimal  @default(0) @db.Decimal(10, 2)
+  tax             Decimal  @default(0) @db.Decimal(10, 2)
+  finalAmount     Decimal  @map("final_amount") @db.Decimal(12, 2)
+  paymentStatus   String   @default("pending") // pending, paid
+  dispensedBy     String   @map("dispensed_by")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  hospital        Hospital       @relation(fields: [hospitalId], references: [id])
+  patient         Patient        @relation(fields: [patientId], references: [id])
+  prescription    Prescription?  @relation(fields: [prescriptionId], references: [id])
+  visit           PatientVisit?  @relation(fields: [visitId], references: [id])
+  pharmacist      User           @relation(fields: [dispensedBy], references: [id])
+  items           DispensingItem[]
+  pharmacyBill    PharmacyBill?
+
+  @@map("pharmacy_dispenses")
+}
+
+model DispensingItem {
+  id                String   @id @default(uuid())
+  dispenseId        String   @map("dispense_id")
+  medicineId        String   @map("medicine_id")
+  quantity          Int
+  batchNumber       String   @map("batch_number")
+  expiryDate        DateTime @map("expiry_date")
+  rate              Decimal  @db.Decimal(10, 2)
+  amount            Decimal  @db.Decimal(12, 2)
+
+  // Substitution tracking
+  originalMedicineId String? @map("original_medicine_id")
+  substitutionType   String? @map("substitution_type") // BRAND, GENERIC, THERAPEUTIC
+  substitutionReason String? @map("substitution_reason")
+
+  dispense          PharmacyDispense @relation(fields: [dispenseId], references: [id], onDelete: Cascade)
+  medicine          Medicine         @relation(fields: [medicineId], references: [id])
+
+  @@map("dispensing_items")
+}
+
+// ============================================
+// BILLING & PAYMENTS
+// ============================================
+
+model Bill {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  patientId       String   @map("patient_id")
+  billNumber      String   @unique @map("bill_number") // INV-2026-000123
+  billType        String   @map("bill_type") // consultation, lab, pharmacy, ipd
+  referenceId     String?  @map("reference_id") // Related entity ID
+  subtotal        Decimal  @db.Decimal(12, 2)
+  discount        Decimal  @default(0) @db.Decimal(10, 2)
+  tax             Decimal  @default(0) @db.Decimal(10, 2)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
+  amountPaid      Decimal  @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  balanceDue      Decimal  @map("balance_due") @db.Decimal(12, 2)
+  status          String   @default("pending") // pending, partial, paid, cancelled, refunded
+  dueDate         DateTime? @map("due_date")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  items           BillItem[]
+  payments        Payment[]
+
+  @@map("bills")
+}
+
+model BillItem {
+  id              String   @id @default(uuid())
+  billId          String   @map("bill_id")
+  itemType        String   @map("item_type") // consultation, lab, pharmacy, procedure
+  description     String
+  quantity        Int      @default(1)
+  rate            Decimal  @db.Decimal(10, 2)
+  amount          Decimal  @db.Decimal(12, 2)
+
+  bill            Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@map("bill_items")
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  patientId       String   @map("patient_id")
+  billId          String?  @map("bill_id")
+  masterBillId    String?  @map("master_bill_id")
+  paymentNumber   String   @unique @map("payment_number") // PAY-2026-000123
+  amount          Decimal  @db.Decimal(12, 2)
+  paymentMethod   String   @map("payment_method") // cash, upi, card, netbanking
+  transactionId   String?  @map("transaction_id")
+  status          String   @default("completed") // pending, completed, failed, refunded
+  notes           String?
+  receivedBy      String?  @map("received_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  hospital        Hospital     @relation(fields: [hospitalId], references: [id])
+  patient         Patient      @relation(fields: [patientId], references: [id])
+  bill            Bill?        @relation(fields: [billId], references: [id])
+  masterBill      MasterBill?  @relation(fields: [masterBillId], references: [id])
+
+  @@map("payments")
+}
+
+// ============================================
+// NOTIFICATIONS & AUDIT
+// ============================================
+
+model Notification {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  userId          String?  @map("user_id")
+  patientId       String?  @map("patient_id")
+  type            String   // sms, email, whatsapp, in_app
+  title           String
+  message         String
+  data            String?  // JSON payload
+  isRead          Boolean  @default(false) @map("is_read")
+  sentAt          DateTime @default(now()) @map("sent_at")
+  readAt          DateTime? @map("read_at")
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+  user            User?    @relation(fields: [userId], references: [id])
+  patient         Patient? @relation(fields: [patientId], references: [id])
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  userId          String?  @map("user_id")
+  action          String
+  entityType      String   @map("entity_type")
+  entityId        String   @map("entity_id")
+  oldValues       String?  @map("old_values") // JSON
+  newValues       String?  @map("new_values") // JSON
+  ipAddress       String?  @map("ip_address")
+  userAgent       String?  @map("user_agent")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+  user            User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ============================================
+// PHARMACY STOCK TRANSACTIONS
+// ============================================
+
+model PharmacyStockTransaction {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  medicineId      String   @map("medicine_id")
+  inventoryId     String?  @map("inventory_id")
+  transactionType String   @map("transaction_type") // IN, OUT
+  quantity        Int
+  referenceType   String?  @map("reference_type") // purchase, prescription, adjustment, return
+  referenceId     String?  @map("reference_id") // Related entity ID
+  batchNumber     String?  @map("batch_number")
+  notes           String?
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+  medicine        Medicine @relation(fields: [medicineId], references: [id])
+  inventory       Inventory? @relation(fields: [inventoryId], references: [id])
+
+  @@map("pharmacy_stock_transactions")
+}
+
+// ============================================
+// PHARMACY BILLING
+// ============================================
+
+model PharmacyBill {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  patientId       String   @map("patient_id")
+  prescriptionId  String?  @map("prescription_id")
+  dispenseId      String?  @unique @map("dispense_id")
+  billNumber      String   @unique @map("bill_number") // PHB-2026-000123
+  subtotal        Decimal  @db.Decimal(12, 2)
+  discount        Decimal  @default(0) @db.Decimal(10, 2)
+  tax             Decimal  @default(0) @db.Decimal(10, 2)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
+  paymentMethod   String   @default("cash") @map("payment_method") // cash, upi, card, netbanking
+  paymentStatus   String   @default("pending") @map("payment_status") // pending, paid, partial, refunded
+  transactionId   String?  @map("transaction_id")
+  notes           String?
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  prescription    Prescription? @relation(fields: [prescriptionId], references: [id])
+  dispense        PharmacyDispense? @relation(fields: [dispenseId], references: [id])
+  items           PharmacyBillItem[]
+
+  @@map("pharmacy_bills")
+}
+
+model PharmacyBillItem {
+  id              String   @id @default(uuid())
+  billId          String   @map("bill_id")
+  medicineId      String   @map("medicine_id")
+  medicineName    String   @map("medicine_name")
+  quantity        Int
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(10, 2)
+  totalPrice      Decimal  @map("total_price") @db.Decimal(12, 2)
+  batchNumber     String?  @map("batch_number")
+  expiryDate      DateTime? @map("expiry_date")
+
+  bill            PharmacyBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  medicine        Medicine @relation(fields: [medicineId], references: [id])
+
+  @@map("pharmacy_bill_items")
+}
+
+// ============================================
+// PHARMACY EXPENSES
+// ============================================
+
+model PharmacyExpense {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  expenseCategory String   @map("expense_category") // Medicine Purchase, Operational Cost, Equipment, Miscellaneous
+  description     String
+  amount          Decimal  @db.Decimal(12, 2)
+  expenseDate     DateTime @map("expense_date")
+  receiptNumber   String?  @map("receipt_number")
+  supplierName    String?  @map("supplier_name")
+  notes           String?
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@map("pharmacy_expenses")
+}
