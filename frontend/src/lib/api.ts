@@ -427,8 +427,14 @@ export const labAPI = {
   getOrder: (id: string) =>
     api.get(`/lab/orders/${id}`),
 
+  createOrder: (data: any) =>
+    api.post('/lab/orders', data),
+
   collectSample: (id: string, data: any) =>
     api.post(`/lab/orders/${id}/collect-sample`, data),
+
+  startProcessing: (id: string) =>
+    api.post(`/lab/orders/${id}/start-processing`),
 
   submitResults: (id: string, data: any) =>
     api.post(`/lab/orders/${id}/results`, data),
@@ -439,8 +445,23 @@ export const labAPI = {
   createTest: (data: any) =>
     api.post('/lab/tests', data),
 
+  updateTest: (id: string, data: any) =>
+    api.put(`/lab/tests/${id}`, data),
+
+  updateTestStatus: (id: string, isActive: boolean) =>
+    api.patch(`/lab/tests/${id}`, { isActive }),
+
+  deleteTest: (id: string) =>
+    api.delete(`/lab/tests/${id}`),
+
   getCategories: () =>
     api.get('/lab/categories'),
+
+  getPendingSamples: () =>
+    api.get('/lab/samples/pending'),
+
+  getPendingResults: () =>
+    api.get('/lab/results/pending'),
 };
 
 // Appointment API

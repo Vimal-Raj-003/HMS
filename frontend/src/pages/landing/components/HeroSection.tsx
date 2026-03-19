@@ -107,17 +107,17 @@ const HeroSection = () => {
               <div className="absolute -inset-8 bg-gradient-radial from-blue-400/10 via-teal-400/5 to-transparent rounded-3xl blur-2xl pointer-events-none"></div>
               
               {/* Headline with proper typography hierarchy */}
-              {/* Desktop: 56px, Tablet: 42px, Mobile: 32px | Font-weight: 700 | Line-height: 1.1 | Color: #0F172A */}
-              <h1 className="relative font-bold text-[#0F172A] leading-[1.1] tracking-tight
-                text-3xl 
-                sm:text-4xl 
-                md:text-[42px] 
+              {/* Desktop: 56px, Tablet: 42px, Mobile: 32px | Font-weight: 700 | Line-height: 1.3 | Color: #0F172A */}
+              <h1 className="relative font-bold text-[#0F172A] leading-[1.3] tracking-tight
+                text-3xl
+                sm:text-4xl
+                md:text-[42px]
                 lg:text-[56px]
                 xl:text-[56px]">
                 Smart Healthcare
-                <br />
+                <br className="mb-2" />
                 {/* Gradient text for "Management System" - #2563EB → #14B8A6 */}
-                <span className="relative">
+                <span className="relative inline-block mt-2">
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2563EB] to-[#14B8A6]">
                     Management System
                   </span>

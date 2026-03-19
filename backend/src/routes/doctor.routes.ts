@@ -1397,7 +1397,8 @@ router.post(
               consultationId: consultation.id,
               doctorId,
               orderNumber,
-              status: 'pending',
+              status: 'ordered',
+              priority: 'normal',
             },
           });
 

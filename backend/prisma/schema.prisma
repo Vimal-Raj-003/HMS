@@ -41,6 +41,8 @@ model Hospital {
   prescriptions      Prescription[]
   labOrders          LabOrder[]
   labTests           LabTest[]
+  labSamples         LabSample[]
+  labBillings        LabBilling[]
   medicines          Medicine[]
   inventory          Inventory[]
   pharmacyDispenses  PharmacyDispense[]
@@ -177,6 +179,8 @@ model Patient {
   consultations         Consultation[]
   prescriptions         Prescription[]
   labOrders             LabOrder[]
+  labSamples            LabSample[]
+  labBillings           LabBilling[]
   pharmacyDispenses     PharmacyDispense[]
   pharmacyBills         PharmacyBill[]
   bills                 Bill[]
@@ -614,11 +618,12 @@ model LabOrder {
   hospitalId      String   @map("hospital_id")
   patientId       String   @map("patient_id")
   consultationId  String?  @map("consultation_id")
+  appointmentId   String?  @map("appointment_id")
   doctorId        String?  @map("doctor_id")
   visitId         String?  @map("visit_id")
   orderNumber     String   @unique @map("order_number") // LAB-001234
-  priority        String   @default("normal") // normal, urgent, stat
-  status          String   @default("pending") // pending, sample_collected, in_progress, completed, cancelled
+  priority        String   @default("normal") // normal, urgent, critical
+  status          String   @default("ordered") // ordered, sample_collected, processing, completed, cancelled
   notes           String?
   sampleId        String?  @map("sample_id")
   sampleType      String?  @map("sample_type")
@@ -635,6 +640,8 @@ model LabOrder {
   doctor          User?          @relation(fields: [doctorId], references: [id])
   visit           PatientVisit?  @relation(fields: [visitId], references: [id])
   items           LabOrderItem[]
+  sample          LabSample?
+  billing         LabBilling?
 
   @@map("lab_orders")
 }
@@ -648,6 +655,7 @@ model LabOrderItem {
   unit            String?
   referenceRange  String?  @map("reference_range")
   interpretation  String?  // normal, abnormal, critical
+  isCritical      Boolean  @default(false) @map("is_critical")
   technicianNotes String?  @map("technician_notes")
   completedAt     DateTime? @map("completed_at")
 
@@ -658,6 +666,52 @@ model LabOrderItem {
   test            LabTest  @relation(fields: [testId], references: [id])
 
   @@map("lab_order_items")
+}
+
+// Lab Sample Collection Tracking
+model LabSample {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  labOrderId      String   @unique @map("lab_order_id")
+  patientId       String   @map("patient_id")
+  sampleId        String   @unique @map("sample_id") // SPL-2026-000001
+  sampleType      String   @map("sample_type")
+  collectedBy     String   @map("collected_by")
+  collectedAt     DateTime @default(now()) @map("collected_at")
+  status          String   @default("collected") // collected, processing, disposed
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+  labOrder        LabOrder @relation(fields: [labOrderId], references: [id])
+  patient         Patient  @relation(fields: [patientId], references: [id])
+
+  @@map("lab_samples")
+}
+
+// Lab Billing
+model LabBilling {
+  id              String   @id @default(uuid())
+  hospitalId      String   @map("hospital_id")
+  patientId       String   @map("patient_id")
+  labOrderId      String   @unique @map("lab_order_id")
+  billNumber      String   @unique @map("bill_number") // LB-2026-000001
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
+  discount        Decimal  @default(0) @db.Decimal(10, 2)
+  tax             Decimal  @default(0) @db.Decimal(10, 2)
+  finalAmount     Decimal  @map("final_amount") @db.Decimal(12, 2)
+  paymentStatus   String   @default("pending") @map("payment_status") // pending, paid, partial, waived
+  paymentMethod   String?  @map("payment_method") // cash, upi, card, netbanking
+  transactionId   String?  @map("transaction_id")
+  paidAt          DateTime? @map("paid_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  hospital        Hospital @relation(fields: [hospitalId], references: [id])
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  labOrder        LabOrder @relation(fields: [labOrderId], references: [id])
+
+  @@map("lab_billing")
 }
 
 // ============================================
