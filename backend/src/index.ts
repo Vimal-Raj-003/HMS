@@ -30,10 +30,11 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// Parse allowed origins from environment (comma-separated for multiple domains)
-const allowedOrigins = process.env.FRONTEND_URL 
-  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-  : ['http://localhost:3000'];
+// Hardcoded allowed origins (no comma-separated env dependency)
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://hms-ten-indol.vercel.app"
+];
 
 // Socket.IO configuration
 const io = new SocketIOServer(httpServer, {
@@ -54,21 +55,8 @@ initializeSocket(io);
 
 // CORS configuration
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Use exact origin matching only (no substring matching to prevent bypass attacks)
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked origin: ${origin}`);
-      callback(null, false);
-    }
-  },
+  origin: allowedOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -79,6 +67,15 @@ app.use(tenantMiddleware);
 
 // Health check (important for Render/other cloud providers)
 app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+  });
+});
+
+// API Health check endpoint
+app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
