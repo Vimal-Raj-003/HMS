@@ -53,11 +53,6 @@ interface BillsQueryParams {
   endDate?: string;
 }
 
-interface BillsResponse {
-  bills: Bill[];
-  pagination?: Pagination;
-}
-
 export default function PharmacyBills() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);

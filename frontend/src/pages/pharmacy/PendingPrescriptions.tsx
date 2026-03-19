@@ -66,12 +66,6 @@ interface Pagination {
   pages: number;
 }
 
-interface PrescriptionsQueryParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-}
-
 interface PrescriptionsResponse {
   prescriptions: Prescription[];
   pagination?: Pagination;
