@@ -1585,7 +1585,7 @@ router.get('/patients/:patientId/records', authenticate, authorize('DOCTOR'), as
           select: {
             appointmentDate: true,
             startTime: true,
-            appointmentType: true,
+            type: true,
           },
         },
       },
@@ -1599,13 +1599,13 @@ router.get('/patients/:patientId/records', authenticate, authorize('DOCTOR'), as
       id: consult.id,
       date: consult.createdAt.toISOString().split('T')[0],
       appointmentDate: consult.appointment?.appointmentDate?.toISOString().split('T')[0] || consult.createdAt.toISOString().split('T')[0],
-      appointmentType: consult.appointment?.appointmentType || 'General',
+      appointmentType: consult.appointment?.type || 'General',
       doctorName: `${consult.doctor.firstName} ${consult.doctor.lastName}`,
       specialization: consult.doctor.specialty || 'General',
       chiefComplaint: consult.chiefComplaint || '',
       diagnosis: consult.provisionalDiagnosis || 'General Consultation',
       prescription: consult.prescriptions[0]?.items
-        ?.map((item) => `${item.medicine.name} ${item.dosage}`)
+        ?.map((item: { medicine: { name: string }; dosage: string }) => `${item.medicine.name} ${item.dosage}`)
         .join('\n') || '',
       notes: consult.advice || '',
       followUpDate: consult.followUpDate?.toISOString().split('T')[0] || null,
@@ -1729,7 +1729,7 @@ router.get('/patients/:patientId/lab-reports', authenticate, authorize('DOCTOR')
         status: order.status.toUpperCase(),
         results,
         notes: order.notes || '',
-        isUrgent: order.isUrgent || false,
+        isUrgent: order.priority === 'urgent' || order.priority === 'critical',
       };
     });
 
