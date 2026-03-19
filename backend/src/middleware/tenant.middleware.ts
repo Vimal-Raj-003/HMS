@@ -14,6 +14,12 @@ export const tenantMiddleware = (
   res: Response,
   next: NextFunction
 ) => {
+  // Skip tenant check for health endpoints and static files
+  const excludedPaths = ['/health', '/api/health', '/favicon.ico'];
+  if (excludedPaths.includes(req.path)) {
+    return next();
+  }
+  
   // Extract tenant ID from various sources
   // 1. From subdomain (e.g., cityhospital.vims.com)
   // 2. From header (X-Tenant-ID)
