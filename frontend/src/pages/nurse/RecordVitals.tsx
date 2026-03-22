@@ -20,7 +20,7 @@ import {
   Phone,
   AlertCircle,
 } from 'lucide-react';
-import api from '../../lib/api';
+import api, { nurseAPI } from '../../lib/api';
 
 interface Patient {
   id: string;
@@ -113,13 +113,14 @@ export default function RecordVitals() {
     }
   }, [patientId]);
 
-  const loadPatientData = async (id: string) => {
+   const loadPatientData = async (id: string) => {
     setLoading(true);
     try {
+      // Use nurseAPI methods for better abstraction
       const [patientRes, appointmentsRes, vitalsRes] = await Promise.all([
-        api.get(`/nurse/patient/${id}`),
-        api.get(`/nurse/patient/${id}/appointments`),
-        api.get(`/nurse/patient/${id}/vitals/latest`),
+        nurseAPI.getPatient(id),
+        nurseAPI.getPatientAppointments(id),
+        nurseAPI.getLatestVitals(id),
       ]);
 
       setSelectedPatient(patientRes.data);
@@ -133,12 +134,24 @@ export default function RecordVitals() {
         }
       } else if (appointmentsRes.data?.length > 0) {
         // Select the first pending appointment for today
+        // Normalize both dates to YYYY-MM-DD for comparison since backend
+        // returns full ISO strings (e.g., "2026-03-21T00:00:00.000Z")
         const today = new Date().toISOString().split('T')[0];
-        const todayApt = appointmentsRes.data.find((a: Appointment) => 
-          a.appointmentDate === today && a.status !== 'COMPLETED'
-        );
+        const todayApt = appointmentsRes.data.find((a: Appointment) => {
+          const aptDate = new Date(a.appointmentDate).toISOString().split('T')[0];
+          return aptDate === today && a.status !== 'COMPLETED';
+        });
         if (todayApt) {
           setSelectedAppointment(todayApt);
+        } else {
+          // Fallback: select the first non-completed appointment
+          // This ensures vitals are always linked to an appointment
+          const firstPending = appointmentsRes.data.find(
+            (a: Appointment) => a.status !== 'COMPLETED'
+          );
+          if (firstPending) {
+            setSelectedAppointment(firstPending);
+          }
         }
       }
 
@@ -181,11 +194,11 @@ export default function RecordVitals() {
   };
 
   const handleSelectPatient = (patient: Patient & { appointment?: Appointment }) => {
-    setSelectedPatient(patient);
-    if (patient.appointment) {
-      setSelectedAppointment(patient.appointment);
-    }
-    navigate(`/nurse/vitals/${patient.id}`, { replace: true });
+    // Navigate with appointment ID in URL so loadPatientData can pick it up
+    const url = patient.appointment
+      ? `/nurse/vitals/${patient.id}?appointmentId=${patient.appointment.id}`
+      : `/nurse/vitals/${patient.id}`;
+    navigate(url, { replace: true });
   };
 
   const handleBackToSearch = () => {
@@ -293,9 +306,18 @@ export default function RecordVitals() {
       
       // Navigate back to search or dashboard
       navigate('/nurse/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving vitals:', error);
-      alert('Failed to save vitals. Please try again.');
+      console.error('Error response:', error?.response?.data);
+      let errorMessage = error?.response?.data?.message || 'Failed to save vitals. Please try again.';
+      // Extract validation errors from express-validator format
+      if (error?.response?.data?.errors?.length) {
+        const validationErrors = error.response.data.errors
+          .map((e: any) => `${e.path}: ${e.msg}`)
+          .join('\n');
+        errorMessage = `Validation failed:\n${validationErrors}`;
+      }
+      alert(errorMessage);
     } finally {
       setSaving(false);
     }

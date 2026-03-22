@@ -6,7 +6,6 @@ import {
   FileText,
   CheckCircle,
   AlertTriangle,
-  IndianRupee,
   ClipboardList,
   BarChart3,
   ChevronRight,
@@ -14,6 +13,8 @@ import {
   Zap
 } from 'lucide-react';
 import CollapsibleCard from '../../components/ui/CollapsibleCard';
+import { SkeletonDashboard } from '../../components/ui/Skeleton';
+import StatCard from '../../components/ui/StatCard';
 import { labAPI } from '../../lib/api';
 
 interface DashboardStats {
@@ -45,11 +46,7 @@ export default function LabDashboard() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-            </div>
-        );
+        return <SkeletonDashboard />;
     }
 
     return (
@@ -67,88 +64,52 @@ export default function LabDashboard() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-lg bg-orange-100">
-                            <ClipboardList className="w-4 h-4 text-orange-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-secondary-500">Pending</p>
-                            <p className="text-lg font-bold text-secondary-900">{stats?.pendingOrders || 0}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-lg bg-blue-100">
-                            <TestTube className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-secondary-500">Collected</p>
-                            <p className="text-lg font-bold text-secondary-900">{stats?.samplesCollected || 0}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-lg bg-purple-100">
-                            <FileText className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-secondary-500">Results</p>
-                            <p className="text-lg font-bold text-secondary-900">{stats?.resultsPending || 0}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-lg bg-green-100">
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-secondary-500">Completed</p>
-                            <p className="text-lg font-bold text-secondary-900">{stats?.completedToday || 0}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-lg bg-red-100">
-                            <AlertTriangle className="w-4 h-4 text-red-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-secondary-500">Critical</p>
-                            <p className="text-lg font-bold text-secondary-900">{stats?.criticalAlerts || 0}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-3 hover:shadow-card-hover transition-shadow duration-200">
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-lg bg-yellow-100">
-                            <IndianRupee className="w-4 h-4 text-yellow-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-secondary-500">Revenue</p>
-                            <p className="text-lg font-bold text-secondary-900">₹{(stats?.todayRevenue || 0).toLocaleString()}</p>
-                        </div>
-                    </div>
-                </div>
+            <div className="hms-stats-grid">
+                <StatCard
+                    title="Pending"
+                    value={stats?.pendingOrders || 0}
+                    icon={<ClipboardList className="w-6 h-6" />}
+                    color="yellow"
+                    subtitle="Orders waiting"
+                />
+                <StatCard
+                    title="Collected"
+                    value={stats?.samplesCollected || 0}
+                    icon={<TestTube className="w-6 h-6" />}
+                    color="blue"
+                    subtitle="Samples taken"
+                />
+                <StatCard
+                    title="Results Pending"
+                    value={stats?.resultsPending || 0}
+                    icon={<FileText className="w-6 h-6" />}
+                    color="purple"
+                    subtitle="Awaiting entry"
+                />
+                <StatCard
+                    title="Completed"
+                    value={stats?.completedToday || 0}
+                    icon={<CheckCircle className="w-6 h-6" />}
+                    color="green"
+                    subtitle="Done today"
+                />
+                <StatCard
+                    title="Critical"
+                    value={stats?.criticalAlerts || 0}
+                    icon={<AlertTriangle className="w-6 h-6" />}
+                    color="red"
+                    subtitle="Urgent alerts"
+                />
             </div>
 
             {/* Critical Alerts Banner */}
             {(stats?.criticalAlerts || 0) > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800 rounded-xl p-4">
                     <div className="flex items-start gap-3">
                         <AlertTriangle className="w-6 h-6 text-red-600" />
                         <div>
-                            <h3 className="font-semibold text-red-800">Critical Values Detected</h3>
-                            <p className="text-sm text-red-700 mt-1">
+                            <h3 className="font-semibold text-red-800 dark:text-red-300">Critical Values Detected</h3>
+                            <p className="text-sm text-red-700 dark:text-red-400 mt-1">
                                 {stats?.criticalAlerts} test(s) have critical values that require immediate attention.
                             </p>
                             <Link 
@@ -262,30 +223,30 @@ export default function LabDashboard() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="w-3 h-3 bg-orange-500 rounded-full"></span>
-                                    <span className="text-sm text-secondary-600">Pending Orders</span>
+                                    <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Pending Orders</span>
                                 </div>
-                                <span className="text-sm font-medium text-secondary-900">{stats?.pendingOrders || 0}</span>
+                                <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{stats?.pendingOrders || 0}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                                    <span className="text-sm text-secondary-600">Samples Collected</span>
+                                    <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Samples Collected</span>
                                 </div>
-                                <span className="text-sm font-medium text-secondary-900">{stats?.samplesCollected || 0}</span>
+                                <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{stats?.samplesCollected || 0}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="w-3 h-3 bg-purple-500 rounded-full"></span>
-                                    <span className="text-sm text-secondary-600">Results Pending</span>
+                                    <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Results Pending</span>
                                 </div>
-                                <span className="text-sm font-medium text-secondary-900">{stats?.resultsPending || 0}</span>
+                                <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{stats?.resultsPending || 0}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                                    <span className="text-sm text-secondary-600">Completed Today</span>
+                                    <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Completed Today</span>
                                 </div>
-                                <span className="text-sm font-medium text-secondary-900">{stats?.completedToday || 0}</span>
+                                <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{stats?.completedToday || 0}</span>
                             </div>
                         </div>
                     }
@@ -294,30 +255,30 @@ export default function LabDashboard() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="w-3 h-3 bg-orange-500 rounded-full"></span>
-                                <span className="text-sm text-secondary-600">Pending Orders</span>
+                                <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Pending Orders</span>
                             </div>
-                            <span className="text-sm font-medium text-secondary-900">{stats?.pendingOrders || 0}</span>
+                            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{stats?.pendingOrders || 0}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                                <span className="text-sm text-secondary-600">Samples Collected</span>
+                                <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Samples Collected</span>
                             </div>
-                            <span className="text-sm font-medium text-secondary-900">{stats?.samplesCollected || 0}</span>
+                            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{stats?.samplesCollected || 0}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="w-3 h-3 bg-purple-500 rounded-full"></span>
-                                <span className="text-sm text-secondary-600">Results Pending</span>
+                                <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Results Pending</span>
                             </div>
-                            <span className="text-sm font-medium text-secondary-900">{stats?.resultsPending || 0}</span>
+                            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{stats?.resultsPending || 0}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                                <span className="text-sm text-secondary-600">Completed Today</span>
+                                <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Completed Today</span>
                             </div>
-                            <span className="text-sm font-medium text-secondary-900">{stats?.completedToday || 0}</span>
+                            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{stats?.completedToday || 0}</span>
                         </div>
                     </div>
                 </CollapsibleCard>
@@ -410,7 +371,7 @@ export default function LabDashboard() {
                     defaultCollapsed={true}
                     collapsedContent={
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-secondary-600">Ready for collection</span>
+                            <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Ready for collection</span>
                             <Link 
                                 to="/lab/sample-collection"
                                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100"
@@ -421,7 +382,7 @@ export default function LabDashboard() {
                     }
                 >
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-secondary-600">Ready for collection</span>
+                        <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Ready for collection</span>
                         <Link 
                             to="/lab/sample-collection"
                             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100"
@@ -440,7 +401,7 @@ export default function LabDashboard() {
                     defaultCollapsed={true}
                     collapsedContent={
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-secondary-600">Results awaiting entry</span>
+                            <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Results awaiting entry</span>
                             <Link 
                                 to="/lab/enter-results"
                                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100"
@@ -451,7 +412,7 @@ export default function LabDashboard() {
                     }
                 >
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-secondary-600">Results awaiting entry</span>
+                        <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Results awaiting entry</span>
                         <Link 
                             to="/lab/enter-results"
                             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100"
@@ -470,7 +431,7 @@ export default function LabDashboard() {
                     defaultCollapsed={true}
                     collapsedContent={
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-secondary-600">View and manage tests</span>
+                            <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>View and manage tests</span>
                             <Link 
                                 to="/lab/test-catalog"
                                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100"
@@ -481,7 +442,7 @@ export default function LabDashboard() {
                     }
                 >
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-secondary-600">View and manage tests</span>
+                        <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>View and manage tests</span>
                         <Link 
                             to="/lab/test-catalog"
                             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100"

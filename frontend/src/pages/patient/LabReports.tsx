@@ -198,20 +198,7 @@ This is a demo lab report generated for demonstration purposes.
       toast.success('Report downloaded successfully!');
     } catch (error: any) {
       console.error('Download error:', error);
-      // Fallback: try direct download
-      try {
-        const fileName = `${report.testName.replace(/\s+/g, '-').toLowerCase()}-report.pdf`;
-        const a = window.document.createElement('a');
-        a.href = report.reportFileUrl || '';
-        a.download = fileName;
-        a.target = '_blank';
-        window.document.body.appendChild(a);
-        a.click();
-        window.document.body.removeChild(a);
-        toast.success('Report downloaded successfully!');
-      } catch (fallbackError) {
-        toast.error('Failed to download report');
-      }
+      toast.error('Failed to download report. Please try viewing it instead.');
     } finally {
       setDownloadingId(null);
     }

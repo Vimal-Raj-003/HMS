@@ -120,7 +120,7 @@ export default function NurseDashboard() {
           subtitle={`${stats?.waitingForVitals?.length || 0} patients in next 2 hours`}
           icon={<Clock className="w-5 h-5 text-yellow-600" />}
           iconBgColor="bg-yellow-100"
-          defaultCollapsed={true}
+          defaultCollapsed={false}
           headerAction={
             <Link
               to="/nurse/vitals"
@@ -136,9 +136,9 @@ export default function NurseDashboard() {
                 stats.waitingForVitals.slice(0, 3).map((patient) => (
                   <div key={patient.appointmentId} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-secondary-700">{patient.patientName}</span>
-                      <span className="text-secondary-400">•</span>
-                      <span className="text-secondary-500">{patient.appointmentTime}</span>
+                      <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{patient.patientName}</span>
+                      <span style={{ color: 'var(--color-text-muted)' }}>•</span>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>{patient.appointmentTime}</span>
                     </div>
                     <Link
                       to={`/nurse/vitals/${patient.patientId}?appointmentId=${patient.appointmentId}`}
@@ -162,15 +162,15 @@ export default function NurseDashboard() {
               stats.waitingForVitals.map((patient) => (
                 <div
                   key={patient.appointmentId}
-                  className="flex items-center justify-between p-3 bg-yellow-50 rounded-xl border border-yellow-100 hover:border-yellow-200 hover:bg-yellow-100/50 transition-all duration-200"
+                  className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-100 dark:border-yellow-800 hover:border-yellow-200 hover:bg-yellow-100/50 dark:hover:border-yellow-700 dark:hover:bg-yellow-900/30 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 bg-yellow-100 text-yellow-600 rounded-xl">
+                    <div className="flex items-center justify-center w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 rounded-xl">
                       <Clock className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="font-medium text-secondary-900">{patient.patientName}</p>
-                      <div className="flex items-center gap-2 text-xs text-secondary-500">
+                      <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{patient.patientName}</p>
+                      <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                         <span className="flex items-center gap-1">
                           <Phone className="w-3 h-3" />
                           {patient.phone}
@@ -197,11 +197,11 @@ export default function NurseDashboard() {
               ))
             ) : (
               <div className="flex flex-col items-center py-8">
-                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-3">
+                <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-3">
                   <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
-                <p className="text-sm font-medium text-secondary-700">All caught up!</p>
-                <p className="text-xs text-secondary-500">No patients waiting for vitals in the next 2 hours</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>All caught up!</p>
+                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>No patients waiting for vitals in the next 2 hours</p>
               </div>
             )}
           </div>
@@ -219,14 +219,14 @@ export default function NurseDashboard() {
               {stats?.recentVitals && stats.recentVitals.length > 0 ? (
                 stats.recentVitals.map((vital) => (
                   <div key={vital.id} className="flex items-center justify-between text-sm">
-                    <span className="text-secondary-600">{vital.patientName}</span>
-                    <span className="text-secondary-500">
+                    <span style={{ color: 'var(--color-text-secondary)' }}>{vital.patientName}</span>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>
                       {new Date(vital.recordedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-secondary-500">No vitals recorded yet</p>
+                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>No vitals recorded yet</p>
               )}
             </div>
           }
@@ -236,15 +236,15 @@ export default function NurseDashboard() {
               stats.recentVitals.map((vital) => (
                 <div
                   key={vital.id}
-                  className="flex items-center justify-between p-3 bg-green-50 rounded-xl border border-green-100"
+                  className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="flex items-center justify-center w-10 h-10 bg-green-100 text-green-600 rounded-xl">
+                    <span className="flex items-center justify-center w-10 h-10 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl">
                       <CheckCircle className="w-5 h-5" />
                     </span>
                     <div>
-                      <p className="font-medium text-secondary-900">{vital.patientName}</p>
-                      <p className="text-xs text-secondary-500">ID: {vital.patientNumber}</p>
+                      <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{vital.patientName}</p>
+                      <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>ID: {vital.patientNumber}</p>
                       {vital.doctorName && (
                         <p className="text-xs text-primary-600 flex items-center gap-1 mt-0.5">
                           <Stethoscope className="w-3 h-3" />
@@ -254,8 +254,8 @@ export default function NurseDashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-secondary-500">Recorded at</p>
-                    <p className="text-sm font-medium text-secondary-700">
+                    <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>Recorded at</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
                       {new Date(vital.recordedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
@@ -263,11 +263,11 @@ export default function NurseDashboard() {
               ))
             ) : (
               <div className="flex flex-col items-center py-8">
-                <div className="w-12 h-12 rounded-xl bg-secondary-100 flex items-center justify-center mb-3">
+                <div className="w-12 h-12 rounded-xl bg-secondary-100 dark:bg-gray-700 flex items-center justify-center mb-3">
                   <Activity className="w-6 h-6 text-secondary-400" />
                 </div>
-                <p className="text-sm font-medium text-secondary-700">No vitals recorded</p>
-                <p className="text-xs text-secondary-500">Start recording patient vitals</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>No vitals recorded</p>
+                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>Start recording patient vitals</p>
               </div>
             )}
           </div>

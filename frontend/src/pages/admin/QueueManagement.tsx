@@ -28,11 +28,30 @@ export default function QueueManagement() {
     return () => clearInterval(interval);
   }, [departmentFilter]);
 
+  const mapQueueEntry = (raw: any): QueueEntry => ({
+    id: raw.id,
+    patientId: raw.patientId,
+    patientName: raw.patient
+      ? `${raw.patient.firstName} ${raw.patient.lastName}`
+      : raw.patientName || 'Unknown',
+    patientPhone: raw.patient?.phone || raw.patientPhone || '',
+    tokenNumber: raw.queueNumber || raw.tokenNumber || 0,
+    department: raw.doctor?.specialty || raw.department || 'General',
+    doctorName: raw.doctor
+      ? `Dr. ${raw.doctor.firstName} ${raw.doctor.lastName}`
+      : raw.doctorName || '',
+    status: raw.status || 'WAITING',
+    priority: raw.priority || 'NORMAL',
+    checkInTime: raw.createdAt || raw.checkInTime || '',
+    waitingTime: raw.waitTime != null ? `${raw.waitTime} min` : raw.waitingTime || '0 min',
+  });
+
   const fetchQueue = async () => {
     try {
       const params = departmentFilter !== 'all' ? `?department=${departmentFilter}` : '';
-      const response = await api.get(`/queue${params}`);
-      setQueue(response.data);
+      const response = await api.get(`/admin/queue${params}`);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setQueue(data.map(mapQueueEntry));
     } catch (error) {
       console.error('Error fetching queue:', error);
     } finally {
@@ -42,7 +61,17 @@ export default function QueueManagement() {
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      await api.patch(`/queue/${id}/status`, { status });
+      // Map status changes to the correct queue action endpoints
+      const actionMap: Record<string, string> = {
+        'IN_PROGRESS': 'call',
+        'COMPLETED': 'complete',
+        'CANCELLED': 'skip',
+        'HOLD': 'hold',
+      };
+      const action = actionMap[status];
+      if (action) {
+        await api.post(`/queue/${id}/${action}`);
+      }
       fetchQueue();
     } catch (error) {
       console.error('Error updating queue status:', error);

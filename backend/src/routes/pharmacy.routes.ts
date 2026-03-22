@@ -3,6 +3,7 @@ import { body, query, param, validationResult } from 'express-validator';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { ApiError } from '../middleware/error.middleware';
 import prisma from '../config/database';
+import { io } from '../index';
 
 const router = Router();
 
@@ -135,6 +136,51 @@ router.get('/dashboard-stats', authenticate, authorize('PHARMACIST'), async (req
         })),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
+// PATIENT SEARCH (for manual billing)
+// ============================================
+
+// @route   GET /api/pharmacy/patients/search
+// @desc    Search patients for manual billing
+// @access  Private (Pharmacist)
+router.get('/patients/search', authenticate, authorize('PHARMACIST'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { search } = req.query;
+    const hospitalId = req.user!.hospitalId;
+
+    if (!search || (search as string).trim().length < 2) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const patients = await prisma.patient.findMany({
+      where: {
+        hospitalId,
+        OR: [
+          { firstName: { contains: search as string, mode: 'insensitive' } },
+          { lastName: { contains: search as string, mode: 'insensitive' } },
+          { patientNumber: { contains: search as string, mode: 'insensitive' } },
+          { phone: { contains: search as string } },
+        ],
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        patientNumber: true,
+        phone: true,
+        dateOfBirth: true,
+        gender: true,
+      },
+      take: 10,
+      orderBy: { firstName: 'asc' },
+    });
+
+    res.json({ success: true, data: patients });
   } catch (error) {
     next(error);
   }
@@ -1021,6 +1067,29 @@ router.post(
 
         return { dispense, bill, dispenseNumber, billNumber };
       });
+
+      // Notify patient that prescription was dispensed
+      await prisma.notification.create({
+        data: {
+          hospitalId,
+          userId: patientId,
+          type: 'PRESCRIPTION_DISPENSED',
+          title: 'Prescription Filled',
+          message: `Your prescription has been dispensed. Bill number: ${result.billNumber}.`,
+          data: JSON.stringify({
+            dispenseId: result.dispense.id,
+            billNumber: result.billNumber,
+          }),
+        },
+      });
+
+      if (io) {
+        io.to(`user:${patientId}`).emit('notification', {
+          type: 'PRESCRIPTION_DISPENSED',
+          title: 'Prescription Filled',
+          message: 'Your prescription has been dispensed.',
+        });
+      }
 
       res.status(201).json({
         success: true,

@@ -287,8 +287,21 @@ export const nurseAPI = {
   searchPatients: (params: any) =>
     api.get('/nurse/patients/search', { params }),
 
+  // Fixed endpoint: /nurse/patient/${id} (singular) to match backend route
+  getPatient: (id: string) =>
+    api.get(`/nurse/patient/${id}`),
+
+  // Legacy method - kept for backward compatibility
   getPatientProfile: (id: string) =>
-    api.get(`/nurse/patients/${id}/profile`),
+    api.get(`/nurse/patient/${id}`),
+
+  // Get patient appointments for today
+  getPatientAppointments: (id: string) =>
+    api.get(`/nurse/patient/${id}/appointments`),
+
+  // Get patient's latest vitals
+  getLatestVitals: (id: string) =>
+    api.get(`/nurse/patient/${id}/vitals/latest`),
 
   getQueue: () =>
     api.get('/nurse/queue'),
@@ -374,6 +387,10 @@ export const pharmacyAPI = {
 
   getInventoryAlerts: () =>
     api.get('/pharmacy/inventory/alerts'),
+
+  // Patient search (for manual billing)
+  searchPatients: (search: string) =>
+    api.get('/pharmacy/patients/search', { params: { search } }),
 
   // Dispensing
   dispense: (data: any) =>

@@ -67,8 +67,10 @@ const specialties = [
 
 const SpecialtiesSection = () => {
   return (
-    <section id="specialties" className="py-20 lg:py-28 bg-transparent relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="specialties" className="py-20 lg:py-28 relative">
+      {/* Section background tint — soft teal wash */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-teal-50/30 to-transparent pointer-events-none" />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-teal-50/80 backdrop-blur-sm rounded-full mb-6 border border-teal-100/50">
@@ -76,7 +78,7 @@ const SpecialtiesSection = () => {
             <span className="text-sm font-semibold text-teal-700">Medical Excellence</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
-            Our Specialties
+            Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-blue-600">Specialties</span>
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
             Comprehensive healthcare services across multiple medical disciplines, 
@@ -142,7 +144,7 @@ const SpecialtiesSection = () => {
           <p className="text-slate-600 mb-4 text-lg">
             Can't find what you're looking for?
           </p>
-          <button className="inline-flex items-center gap-2 px-6 py-3 bg-slate-100/80 backdrop-blur-sm text-slate-700 rounded-xl font-semibold hover:bg-slate-200/80 transition-all duration-300 group border border-slate-200/50 hover:border-slate-300/50 hover:shadow-lg hover:-translate-y-1">
+          <button className="inline-flex items-center gap-2 px-6 py-3 bg-white/80 backdrop-blur-sm text-slate-700 rounded-xl font-semibold hover:bg-white transition-all duration-300 group border border-slate-200/50 hover:border-slate-300/50 hover:shadow-lg hover:-translate-y-1">
             View All Departments
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
           </button>

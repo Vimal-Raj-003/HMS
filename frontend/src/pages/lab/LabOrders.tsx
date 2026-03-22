@@ -129,11 +129,11 @@ export default function LabOrders() {
     return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  // Calculate stats
+  // Calculate stats - include both 'ordered' and 'recommended' as pending
   const stats = {
-    pending: orders.filter(o => o.status.toLowerCase() === 'ordered').length,
+    pending: orders.filter(o => ['ordered', 'recommended', 'pending'].includes(o.status.toLowerCase())).length,
     collected: orders.filter(o => o.status.toLowerCase() === 'sample_collected').length,
-    processing: orders.filter(o => o.status.toLowerCase() === 'processing').length,
+    processing: orders.filter(o => ['processing', 'in_progress'].includes(o.status.toLowerCase())).length,
     completed: orders.filter(o => o.status.toLowerCase() === 'completed').length,
   };
 
@@ -224,7 +224,8 @@ export default function LabOrders() {
             className="rounded-lg border border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 px-4 py-2"
           >
             <option value="all">All Orders</option>
-            <option value="ordered">Pending</option>
+            <option value="recommended">Recommended</option>
+            <option value="ordered">Ordered</option>
             <option value="sample_collected">Sample Collected</option>
             <option value="processing">Processing</option>
             <option value="completed">Completed</option>
@@ -287,7 +288,7 @@ export default function LabOrders() {
                   ))}
                 </div>
                 <div className="flex justify-end gap-2">
-                  {order.status.toLowerCase() === 'ordered' && (
+                  {(order.status.toLowerCase() === 'ordered' || order.status.toLowerCase() === 'recommended') && (
                     <button
                       onClick={() => navigate(`/lab/sample-collection?orderId=${order.id}`)}
                       className="btn-primary inline-flex items-center gap-2"

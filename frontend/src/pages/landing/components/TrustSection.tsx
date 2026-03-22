@@ -165,11 +165,12 @@ const TrustMetricCard = ({ metric }: { metric: typeof trustMetrics[0] }) => {
 
 const TrustSection = () => {
   return (
-    <section id="trust" className="py-20 lg:py-28 bg-transparent relative overflow-hidden">
-      {/* Background decoration - subtle */}
+    <section id="trust" className="py-20 lg:py-28 relative overflow-hidden">
+      {/* Section background tint — blue-indigo wash with accent orbs */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-50/35 to-transparent pointer-events-none" />
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-50/50 rounded-full blur-3xl opacity-60"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-teal-50/50 rounded-full blur-3xl opacity-60"></div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-100/40 rounded-full blur-3xl opacity-60"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-teal-100/40 rounded-full blur-3xl opacity-60"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -180,7 +181,7 @@ const TrustSection = () => {
             <span className="text-sm font-semibold text-blue-700">Trusted Platform</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
-            Trusted by Healthcare Leaders
+            Trusted by <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-teal-500">Healthcare Leaders</span>
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
             Our platform powers healthcare delivery across hundreds of facilities, 

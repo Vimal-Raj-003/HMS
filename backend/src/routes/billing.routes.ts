@@ -118,8 +118,9 @@ router.post(
       }
 
       const discountAmount = discount || 0;
-      const tax = subtotal * 0.18; // 18% GST
-      const totalAmount = subtotal - discountAmount + tax;
+      const taxableAmount = subtotal - discountAmount;
+      const tax = taxableAmount * 0.18; // 18% GST on discounted amount
+      const totalAmount = taxableAmount + tax;
 
       // Generate bill number
       const count = await prisma.bill.count({ where: { hospitalId } });
@@ -397,8 +398,10 @@ router.post(
       });
 
       const subtotal = lineItems.reduce((sum, item) => sum + item.amount.toNumber(), 0);
-      const tax = subtotal * 0.18;
-      const totalAmount = subtotal + tax;
+      const existingDiscount = masterBill.discount?.toNumber() || 0;
+      const taxableAmount = subtotal - existingDiscount;
+      const tax = taxableAmount * 0.18;
+      const totalAmount = taxableAmount + tax;
 
       await prisma.masterBill.update({
         where: { id: masterBill.id },

@@ -3,6 +3,8 @@ import { body, query, validationResult } from 'express-validator';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { ApiError } from '../middleware/error.middleware';
 import prisma from '../config/database';
+import { emitNewPrescription, emitQueueUpdate, emitNewLabOrder } from '../socket';
+import { io } from '../index';
 
 const router = Router();
 
@@ -1151,6 +1153,15 @@ router.put('/appointments/:id/start', authenticate, authorize('DOCTOR'), async (
       throw ApiError.notFound('Appointment not found', 'APPOINTMENT_NOT_FOUND');
     }
 
+    // Validate appointment is in a valid state to start consultation
+    const validStartStatuses = ['SCHEDULED', 'CONFIRMED', 'PENDING_APPROVAL'];
+    if (!validStartStatuses.includes(appointment.status)) {
+      throw ApiError.conflict(
+        `Cannot start consultation for appointment with status '${appointment.status}'`,
+        'INVALID_APPOINTMENT_STATUS'
+      );
+    }
+
     // Update appointment status
     const updatedAppointment = await prisma.appointment.update({
       where: { id },
@@ -1238,24 +1249,39 @@ router.post(
         });
       }
 
-      // Verify appointment belongs to this doctor
-      const appointment = await prisma.appointment.findFirst({
-        where: { id: appointmentId, doctorId },
-      });
-
-      if (!appointment) {
-        console.log('[Consultation] Appointment not found for id:', appointmentId, 'doctorId:', doctorId);
-        return res.status(404).json({
-          success: false,
-          message: 'Appointment not found or does not belong to this doctor',
-          error: 'APPOINTMENT_NOT_FOUND',
-        });
+      // Flexible completion: warn but allow doctor-controlled completion with missing fields
+      if (status === 'COMPLETED') {
+        const missingFields: string[] = [];
+        if (!chiefComplaint || chiefComplaint.trim().length === 0) {
+          missingFields.push('Chief Complaint');
+        }
+        if (!diagnosis || diagnosis.trim().length === 0) {
+          missingFields.push('Diagnosis');
+        }
+        if (missingFields.length > 0) {
+          console.log('[Consultation] WARNING: Completing with missing fields:', missingFields.join(', '));
+        }
       }
 
-      console.log('[Consultation] Found appointment:', appointment.id);
-
-      // Use transaction for data integrity
+      // Use transaction for data integrity - appointment lookup is INSIDE to prevent TOCTOU race
       const result = await prisma.$transaction(async (tx) => {
+        // Verify appointment belongs to this doctor (inside transaction for consistency)
+        const appointment = await tx.appointment.findFirst({
+          where: { id: appointmentId, doctorId },
+        });
+
+        if (!appointment) {
+          console.log('[Consultation] Appointment not found for id:', appointmentId, 'doctorId:', doctorId);
+          throw ApiError.notFound('Appointment not found or does not belong to this doctor', 'APPOINTMENT_NOT_FOUND');
+        }
+
+        // Idempotency guard: reject duplicate completion requests
+        if (status === 'COMPLETED' && appointment.status === 'COMPLETED') {
+          throw ApiError.conflict('This consultation has already been completed', 'ALREADY_COMPLETED');
+        }
+
+        console.log('[Consultation] Found appointment:', appointment.id);
+
         // Check if consultation already exists for this appointment
         const existingConsultation = await tx.consultation.findUnique({
           where: { appointmentId },
@@ -1296,14 +1322,21 @@ router.post(
         }
 
         // Create prescription if medicines provided
+        let prescriptionId: string | null = null;
         if (medicines && Array.isArray(medicines) && medicines.length > 0) {
           console.log('[Consultation] Processing medicines:', medicines.length);
 
-          // Generate prescription number
-          const prescriptionCount = await tx.prescription.count({
-            where: { hospitalId },
-          });
-          const prescriptionNumber = `PRX-${String(prescriptionCount + 1).padStart(6, '0')}`;
+          // Race-safe prescription number generation
+          const generatePrescriptionNumber = async (): Promise<string> => {
+            for (let attempt = 0; attempt < 3; attempt++) {
+              const count = await tx.prescription.count({ where: { hospitalId } });
+              const candidate = `PRX-${String(count + 1 + attempt).padStart(6, '0')}`;
+              const exists = await tx.prescription.findUnique({ where: { prescriptionNumber: candidate } });
+              if (!exists) return candidate;
+            }
+            return `PRX-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+          };
+          const prescriptionNumber = await generatePrescriptionNumber();
 
           // Delete existing prescription items if any
           const existingPrescription = await tx.prescription.findFirst({
@@ -1332,6 +1365,7 @@ router.post(
               status: 'pending',
             },
           });
+          prescriptionId = prescription.id;
 
           console.log('[Consultation] Prescription created:', prescription.id);
 
@@ -1342,32 +1376,51 @@ router.post(
               continue;
             }
 
-            // Find or create medicine
+            // Find or create medicine - include strength in search to match unique constraint
+            const medicineStrength = med.dosage || 'unknown';
             let medicine = await tx.medicine.findFirst({
               where: {
                 hospitalId,
                 name: med.name,
+                strength: medicineStrength,
               },
             });
 
             if (!medicine) {
-              // Create a basic medicine record
-              medicine = await tx.medicine.create({
-                data: {
-                  hospitalId,
-                  name: med.name,
-                  category: 'tablet',
-                  unit: 'tablet',
-                  price: 0,
-                },
-              });
-              console.log('[Consultation] Created medicine:', medicine.id);
+              // Create a basic medicine record with strength to satisfy unique constraint
+              try {
+                medicine = await tx.medicine.create({
+                  data: {
+                    hospitalId,
+                    name: med.name,
+                    category: 'tablet',
+                    unit: 'tablet',
+                    strength: medicineStrength,
+                    price: 0,
+                  },
+                });
+                console.log('[Consultation] Created medicine:', medicine.id);
+              } catch (medError: any) {
+                // If unique constraint violation, try to find the medicine again
+                if (medError.code === 'P2002') {
+                  console.log('[Consultation] Medicine already exists, fetching...');
+                  medicine = await tx.medicine.findFirst({
+                    where: {
+                      hospitalId,
+                      name: med.name,
+                      strength: medicineStrength,
+                    },
+                  });
+                } else {
+                  throw medError;
+                }
+              }
             }
 
             await tx.prescriptionItem.create({
               data: {
                 prescriptionId: prescription.id,
-                medicineId: medicine.id,
+                medicineId: medicine!.id,
                 dosage: med.dosage || '',
                 frequency: med.frequency || '',
                 durationDays: parseInt(med.duration) || 0,
@@ -1381,26 +1434,35 @@ router.post(
         }
 
         // Create lab orders if recommended
+        let labOrderId: string | null = null;
         if (labTestsRecommended && Array.isArray(labTestsRecommended) && labTestsRecommended.length > 0) {
           console.log('[Consultation] Processing lab tests:', labTestsRecommended.length);
 
-          // Generate order number
-          const labOrderCount = await tx.labOrder.count({
-            where: { hospitalId },
-          });
-          const orderNumber = `LAB-${String(labOrderCount + 1).padStart(6, '0')}`;
+          // Race-safe lab order number generation
+          const generateOrderNumber = async (): Promise<string> => {
+            for (let attempt = 0; attempt < 3; attempt++) {
+              const count = await tx.labOrder.count({ where: { hospitalId } });
+              const candidate = `LAB-${String(count + 1 + attempt).padStart(6, '0')}`;
+              const exists = await tx.labOrder.findUnique({ where: { orderNumber: candidate } });
+              if (!exists) return candidate;
+            }
+            return `LAB-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+          };
+          const orderNumber = await generateOrderNumber();
 
           const labOrder = await tx.labOrder.create({
-            data: {
-              hospitalId,
-              patientId,
-              consultationId: consultation.id,
-              doctorId,
-              orderNumber,
-              status: 'ordered',
-              priority: 'normal',
-            },
-          });
+           data: {
+             hospitalId,
+             patientId,
+             consultationId: consultation.id,
+             appointmentId,
+             doctorId,
+             orderNumber,
+             status: 'recommended',
+             priority: 'normal',
+           },
+         });
+          labOrderId = labOrder.id;
 
           // Create lab order items
           for (const testId of labTestsRecommended) {
@@ -1444,29 +1506,112 @@ router.post(
           console.log('[Consultation] Status updated to COMPLETED');
         }
 
-        return consultation;
+        return { consultation, prescriptionId, labOrderId };
       });
 
       console.log('[Consultation] Transaction completed successfully');
+
+      // Emit real-time notifications after successful transaction
+      if (status === 'COMPLETED' && io) {
+        if (result.prescriptionId) {
+          emitNewPrescription(io, hospitalId, {
+            patientId,
+            prescriptionId: result.prescriptionId,
+          });
+        }
+        if (result.labOrderId) {
+          emitNewLabOrder(io, hospitalId, {
+            patientId,
+            orderId: result.labOrderId,
+            doctorId,
+          });
+        }
+        emitQueueUpdate(io, hospitalId, doctorId, {
+          appointmentId,
+          status: 'COMPLETED',
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       res.json({
         success: true,
         message: status === 'COMPLETED' ? 'Consultation completed successfully' : 'Consultation saved successfully',
         data: {
-          consultationId: result.id,
+          consultationId: result.consultation.id,
+          prescriptionId: result.prescriptionId,
+          labOrderId: result.labOrderId,
           status,
         },
       });
     } catch (error: any) {
-      console.error('[Consultation] Error details:', error);
-      console.error('[Consultation] Error message:', error?.message);
-      console.error('[Consultation] Error stack:', error?.stack);
-      
+      // Structured failure logging
+      const requestSnapshot = {
+        module: 'CONSULTATION',
+        endpoint: 'POST /api/doctors/consultation',
+        timestamp: new Date().toISOString(),
+        doctorId: req.user?.id,
+        hospitalId: req.user?.hospitalId,
+        appointmentId: req.body?.appointmentId,
+        patientId: req.body?.patientId,
+        requestedStatus: req.body?.status,
+        errorCode: error?.code || error?.statusCode || 'UNKNOWN',
+        errorMessage: error?.message,
+      };
+      console.error('[Consultation] FAILURE:', JSON.stringify(requestSnapshot, null, 2));
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Consultation] Stack:', error?.stack);
+      }
+
+      // Handle ApiError thrown from inside transaction (idempotency / not found)
+      if (error?.statusCode === 409) {
+        return res.status(409).json({
+          success: false,
+          message: error.message,
+          error: error.code || 'ALREADY_COMPLETED',
+        });
+      }
+      if (error?.statusCode === 404) {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+          error: error.code || 'APPOINTMENT_NOT_FOUND',
+        });
+      }
+
+      // Handle specific Prisma errors
+      if (error.code === 'P2002') {
+        return res.status(400).json({
+          success: false,
+          message: 'A record with this information already exists',
+          error: 'DUPLICATE_RECORD',
+          details: error.meta,
+        });
+      }
+
+      if (error.code === 'P2003') {
+        return res.status(400).json({
+          success: false,
+          message: 'Referenced record not found',
+          error: 'FOREIGN_KEY_VIOLATION',
+          details: error.meta,
+        });
+      }
+
+      if (error.code === 'P2025') {
+        return res.status(404).json({
+          success: false,
+          message: 'Record not found',
+          error: 'RECORD_NOT_FOUND',
+          details: error.meta,
+        });
+      }
+
       // Return a proper error response
       res.status(500).json({
         success: false,
         message: 'Failed to save consultation',
         error: error?.message || 'Internal server error',
+        code: error?.code,
         details: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
       });
     }

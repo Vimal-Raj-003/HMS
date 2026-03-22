@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, Calendar, CheckCheck, X } from 'lucide-react';
 import { notificationAPI } from '../lib/api';
+import { getSocket } from '../lib/socket';
 
 interface Notification {
   id: string;
@@ -25,9 +26,25 @@ export default function NotificationBell({ onNotificationClick }: NotificationBe
 
   useEffect(() => {
     fetchNotifications();
-    // Poll for new notifications every 30 seconds
+    // Poll for new notifications every 30 seconds (fallback)
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Real-time refresh via socket events (instant delivery alongside polling fallback)
+  useEffect(() => {
+    const socket = getSocket();
+    const refresh = () => { fetchNotifications(); };
+    socket.on('notification', refresh);
+    socket.on('new-prescription', refresh);
+    socket.on('new-lab-order', refresh);
+    socket.on('lab-result-notification', refresh);
+    return () => {
+      socket.off('notification', refresh);
+      socket.off('new-prescription', refresh);
+      socket.off('new-lab-order', refresh);
+      socket.off('lab-result-notification', refresh);
+    };
   }, []);
 
   const fetchNotifications = async () => {

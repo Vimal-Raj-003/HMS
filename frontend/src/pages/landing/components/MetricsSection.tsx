@@ -134,7 +134,7 @@ const MetricCard = ({ metric }: { metric: typeof metrics[0] }) => {
   return (
     <div
       ref={ref}
-      className={`group relative bg-white rounded-2xl p-6 lg:p-8 border border-slate-100 ${metric.hoverBorder} hover:border-transparent hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-default h-full min-h-[200px] flex flex-col transform hover:-translate-y-2 hover:scale-[1.02]`}
+      className={`group relative bg-white/90 backdrop-blur-sm rounded-2xl p-6 lg:p-8 border border-slate-200/60 ${metric.hoverBorder} hover:border-transparent hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-default h-full min-h-[200px] flex flex-col transform hover:-translate-y-2 hover:scale-[1.02]`}
     >
       {/* Hover gradient background */}
       <div className={`absolute inset-0 bg-gradient-to-br ${metric.bgGradient} rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
@@ -177,8 +177,10 @@ const MetricCard = ({ metric }: { metric: typeof metrics[0] }) => {
 
 const MetricsSection = () => {
   return (
-    <section className="py-20 lg:py-28 bg-transparent relative" id="metrics">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-20 lg:py-28 relative" id="metrics">
+      {/* Section background tint — slightly warmer blue wash */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-50/40 to-transparent pointer-events-none" />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50/80 backdrop-blur-sm rounded-full mb-6 border border-blue-100/50">
@@ -186,7 +188,7 @@ const MetricsSection = () => {
             <span className="text-sm font-semibold text-blue-700">Platform Overview</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
-            Healthcare at Scale
+            Healthcare at <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-teal-500">Scale</span>
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
             Our platform serves thousands of patients daily with cutting-edge medical care and technology

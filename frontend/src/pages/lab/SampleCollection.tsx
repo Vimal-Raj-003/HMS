@@ -59,7 +59,7 @@ export default function SampleCollection() {
 
   const fetchPendingOrders = async () => {
     try {
-      const response = await labAPI.getOrders({ status: 'ordered' });
+      const response = await labAPI.getOrders({ status: 'ordered,recommended' });
       setOrders(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching pending orders:', error);

@@ -46,10 +46,14 @@ export default function CollapsibleCard({
 
   return (
     <div
-      className={`bg-white rounded-xl overflow-hidden transition-all duration-200 border border-navy-200 shadow-stat ${className}`}
+      className={`rounded-xl overflow-hidden transition-all duration-200 border shadow-stat ${className}`}
+      style={{
+        backgroundColor: 'var(--color-card-bg)',
+        borderColor: 'var(--color-card-border)',
+      }}
     >
       {/* Card Header - Always visible */}
-      <div className="px-4 py-3 flex items-center justify-between border-b border-navy-100">
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
         <div className="flex items-center gap-3">
           {icon && (
             <div className={`p-1.5 rounded-lg ${iconBgColor}`}>
@@ -57,24 +61,24 @@ export default function CollapsibleCard({
             </div>
           )}
           <div>
-            <h2 className="text-sm font-semibold text-navy-900">{title}</h2>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-card-title)' }}>{title}</h2>
             {subtitle && (
-              <p className="text-xs text-navy-500">{subtitle}</p>
+              <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{subtitle}</p>
             )}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {headerAction && (
             <div className="hidden sm:block">
               {headerAction}
             </div>
           )}
-          
+
           {/* Collapse Toggle Button */}
           <button
             onClick={toggleCollapse}
-            className="p-1.5 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-navy-500 hover:bg-navy-100 hover:text-navy-900"
+            className="p-1.5 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-navy-500 hover:bg-navy-100 dark:text-gray-400 dark:hover:bg-gray-700 hover:text-navy-900 dark:hover:text-gray-200"
             aria-label={isCollapsed ? `Expand ${title}` : `Collapse ${title}`}
             title={isCollapsed ? 'Click to expand' : 'Click to collapse'}
           >
@@ -96,7 +100,7 @@ export default function CollapsibleCard({
       >
         {/* Optional collapsed content - shown when collapsed */}
         {isCollapsed && collapsedContent && (
-          <div className="p-4 bg-background-soft border-b border-navy-100">
+          <div className="p-4 bg-background-soft dark:bg-gray-800/50" style={{ borderBottom: '1px solid var(--color-border)' }}>
             {collapsedContent}
           </div>
         )}
@@ -109,7 +113,7 @@ export default function CollapsibleCard({
 
       {/* Collapsed Summary - shown when content is hidden */}
       {isCollapsed && collapsedContent && (
-        <div className="p-4 bg-background-soft">
+        <div className="p-4 bg-background-soft dark:bg-gray-800/50">
           {collapsedContent}
         </div>
       )}
@@ -137,27 +141,31 @@ export function CollapsibleCardSimple({
 
   return (
     <div
-      className={`bg-white rounded-xl overflow-hidden transition-all duration-200 border border-navy-200 shadow-stat ${className}`}
+      className={`rounded-xl overflow-hidden transition-all duration-200 border shadow-stat ${className}`}
+      style={{
+        backgroundColor: 'var(--color-card-bg)',
+        borderColor: 'var(--color-card-border)',
+      }}
     >
       {/* Card Header */}
-      <div className="px-5 py-4 flex items-center justify-between border-b border-navy-100">
+      <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
         <div>
-          <h2 className="text-base font-semibold text-navy-900">{title}</h2>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--color-card-title)' }}>{title}</h2>
           {subtitle && (
-            <p className="text-xs text-navy-500">{subtitle}</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{subtitle}</p>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2">
           {headerAction && (
             <div className="hidden sm:block">
               {headerAction}
             </div>
           )}
-          
+
           <button
             onClick={toggleCollapse}
-            className="p-2 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-navy-500 hover:bg-navy-100 hover:text-navy-900"
+            className="p-2 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-navy-500 hover:bg-navy-100 dark:text-gray-400 dark:hover:bg-gray-700 hover:text-navy-900 dark:hover:text-gray-200"
             aria-label={isCollapsed ? `Expand ${title}` : `Collapse ${title}`}
           >
             {isCollapsed ? (

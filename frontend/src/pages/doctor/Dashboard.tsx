@@ -212,13 +212,13 @@ export default function DoctorDashboard() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      CONFIRMED: 'bg-green-100 text-green-700 border-green-200',
-      SCHEDULED: 'bg-blue-100 text-blue-700 border-blue-200',
-      PENDING_APPROVAL: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      IN_PROGRESS: 'bg-purple-100 text-purple-700 border-purple-200',
-      COMPLETED: 'bg-gray-100 text-gray-700 border-gray-200',
+      CONFIRMED: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400',
+      SCHEDULED: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400',
+      PENDING_APPROVAL: 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400',
+      IN_PROGRESS: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400',
+      COMPLETED: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-400',
     };
-    return styles[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+    return styles[status] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-400';
   };
 
   if (isLoading) {
@@ -280,15 +280,15 @@ export default function DoctorDashboard() {
         subtitle="Your upcoming appointments"
         icon={<Calendar className="w-5 h-5 text-blue-600" />}
         iconBgColor="bg-blue-100"
-        defaultCollapsed={true}
+        defaultCollapsed={false}
         collapsedContent={
-          <div className="flex items-center gap-4 text-sm text-secondary-600">
+          <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             <span className="inline-flex items-center gap-1.5">
               <Calendar className="w-4 h-4" />
               {upcomingAppointments.length} upcoming appointment{upcomingAppointments.length !== 1 ? 's' : ''}
             </span>
             {upcomingAppointments.length > 0 && (
-              <span className="text-secondary-400">•</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>•</span>
             )}
             {upcomingAppointments[0] && (
               <span>
@@ -300,11 +300,11 @@ export default function DoctorDashboard() {
       >
         {upcomingAppointments.length === 0 ? (
           <div className="flex flex-col items-center py-12 px-4">
-            <div className="w-16 h-16 rounded-2xl bg-secondary-100 flex items-center justify-center mb-4">
-              <Calendar className="w-8 h-8 text-secondary-400" />
+            <div className="w-16 h-16 rounded-2xl bg-secondary-100 dark:bg-gray-700 flex items-center justify-center mb-4">
+              <Calendar className="w-8 h-8" style={{ color: 'var(--color-text-muted)' }} />
             </div>
-            <p className="text-sm font-medium text-secondary-700">No upcoming appointments</p>
-            <p className="text-xs text-secondary-500 mt-1">Your schedule is clear</p>
+            <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>No upcoming appointments</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>Your schedule is clear</p>
           </div>
         ) : (
           <div className="p-5">
@@ -312,7 +312,8 @@ export default function DoctorDashboard() {
               {upcomingAppointments.slice(0, 6).map((appointment) => (
                 <div
                   key={appointment.id}
-                  className="border border-secondary-200 rounded-xl p-4 hover:border-primary-300 hover:shadow-md transition-all duration-200 bg-white"
+                  className="rounded-xl p-4 hover:shadow-md transition-all duration-200 border"
+                  style={{ backgroundColor: 'var(--color-card-bg)', borderColor: 'var(--color-card-border)' }}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -323,10 +324,10 @@ export default function DoctorDashboard() {
                         </span>
                       </div>
                       <div>
-                        <p className="font-semibold text-secondary-900">
+                        <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                           {appointment.patient.firstName} {appointment.patient.lastName}
                         </p>
-                        <p className="text-xs text-secondary-500">
+                        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                           {calculateAge(appointment.patient.dateOfBirth)} yrs, {appointment.patient.gender}
                         </p>
                       </div>
@@ -337,20 +338,20 @@ export default function DoctorDashboard() {
                   </div>
                   
                   <div className="space-y-2 text-sm mb-3">
-                    <div className="flex items-center gap-2 text-secondary-600">
-                      <CalendarDays className="w-4 h-4 text-secondary-400" />
+                    <div className="flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+                      <CalendarDays className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
                       <span>{formatDate(appointment.appointmentDate)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-secondary-600">
-                      <Clock4 className="w-4 h-4 text-secondary-400" />
+                    <div className="flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+                      <Clock4 className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
                       <span>{appointment.startTime}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-secondary-600">
-                      <FileTextIcon className="w-4 h-4 text-secondary-400" />
+                    <div className="flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+                      <FileTextIcon className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
                       <span>{appointment.type}</span>
                     </div>
                     {appointment.chiefComplaint && (
-                      <p className="text-secondary-600 line-clamp-1 text-xs">
+                      <p className="line-clamp-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                         <span className="font-medium">Reason:</span> {appointment.chiefComplaint}
                       </p>
                     )}
@@ -459,11 +460,12 @@ export default function DoctorDashboard() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
             <div
-              className="fixed inset-0 transition-opacity bg-secondary-900/50 backdrop-blur-sm"
+              className="fixed inset-0 transition-opacity backdrop-blur-sm"
+              style={{ backgroundColor: 'var(--color-dialog-overlay)' }}
               onClick={() => setShowModal(false)}
             />
-            
-            <div className="relative inline-block w-full max-w-lg p-6 my-8 text-left align-middle transition-all transform bg-white shadow-modal rounded-2xl animate-scale-in">
+
+            <div className="relative inline-block w-full max-w-lg p-6 my-8 text-left align-middle transition-all transform shadow-modal rounded-2xl animate-scale-in" style={{ backgroundColor: 'var(--color-dialog-bg)' }}>
               {/* Modal Header */}
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-secondary-900">Appointment Details</h3>
@@ -476,7 +478,7 @@ export default function DoctorDashboard() {
               </div>
 
               {/* Patient Information */}
-              <div className="bg-secondary-50 rounded-xl p-4 mb-4">
+              <div className="bg-secondary-50 dark:bg-gray-800/50 rounded-xl p-4 mb-4">
                 <h4 className="text-xs font-semibold text-secondary-500 uppercase tracking-wider mb-3">Patient Information</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2">
@@ -515,7 +517,7 @@ export default function DoctorDashboard() {
               </div>
 
               {/* Appointment Information */}
-              <div className="bg-primary-50 rounded-xl p-4 mb-6">
+              <div className="bg-primary-50 dark:bg-primary-900/30 rounded-xl p-4 mb-6">
                 <h4 className="text-xs font-semibold text-primary-600 uppercase tracking-wider mb-3">Appointment Information</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -584,11 +586,12 @@ export default function DoctorDashboard() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
             <div
-              className="fixed inset-0 transition-opacity bg-secondary-900/50 backdrop-blur-sm"
+              className="fixed inset-0 transition-opacity backdrop-blur-sm"
+              style={{ backgroundColor: 'var(--color-dialog-overlay)' }}
               onClick={() => { setShowRejectModal(false); setRejectReason(''); }}
             />
-            
-            <div className="relative inline-block w-full max-w-md p-6 my-8 text-left align-middle transition-all transform bg-white shadow-modal rounded-2xl animate-scale-in">
+
+            <div className="relative inline-block w-full max-w-md p-6 my-8 text-left align-middle transition-all transform shadow-modal rounded-2xl animate-scale-in" style={{ backgroundColor: 'var(--color-dialog-bg)' }}>
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-lg bg-red-100">
                   <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -637,11 +640,12 @@ export default function DoctorDashboard() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
             <div
-              className="fixed inset-0 transition-opacity bg-secondary-900/50 backdrop-blur-sm"
+              className="fixed inset-0 transition-opacity backdrop-blur-sm"
+              style={{ backgroundColor: 'var(--color-dialog-overlay)' }}
               onClick={() => { setShowRescheduleModal(false); setRescheduleDate(''); setRescheduleTime(''); setRescheduleReason(''); }}
             />
-            
-            <div className="relative inline-block w-full max-w-md p-6 my-8 text-left align-middle transition-all transform bg-white shadow-modal rounded-2xl animate-scale-in">
+
+            <div className="relative inline-block w-full max-w-md p-6 my-8 text-left align-middle transition-all transform shadow-modal rounded-2xl animate-scale-in" style={{ backgroundColor: 'var(--color-dialog-bg)' }}>
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-lg bg-yellow-100">
                   <Clock className="w-5 h-5 text-yellow-600" />

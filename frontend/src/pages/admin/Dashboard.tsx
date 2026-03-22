@@ -129,7 +129,7 @@ export default function AdminDashboard() {
             subtitle="By department"
             icon={<Activity className="w-5 h-5 text-purple-600" />}
             iconBgColor="bg-purple-100"
-            defaultCollapsed={true}
+            defaultCollapsed={false}
             headerAction={
               <Link
                 to="/admin/queue"
@@ -140,7 +140,7 @@ export default function AdminDashboard() {
               </Link>
             }
             collapsedContent={
-              <div className="flex items-center gap-4 text-sm text-secondary-600">
+              <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                 <span className="inline-flex items-center gap-1.5">
                   <Activity className="w-4 h-4" />
                   {stats?.queueStatus?.length || 0} departments active
@@ -158,50 +158,50 @@ export default function AdminDashboard() {
           >
             <div className="overflow-x-auto">
               <table className="min-w-full">
-                <thead className="bg-secondary-50/80">
+                <thead className="bg-secondary-50/80 dark:bg-gray-800/80">
                   <tr>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-secondary-500 uppercase tracking-wider">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
                       Department
                     </th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-secondary-500 uppercase tracking-wider">
+                    <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
                       Waiting
                     </th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-secondary-500 uppercase tracking-wider">
+                    <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
                       In Progress
                     </th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-secondary-500 uppercase tracking-wider">
+                    <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
                       Total
                     </th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-secondary-500 uppercase tracking-wider">
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-secondary-100">
+                <tbody className="divide-y divide-secondary-100 dark:divide-gray-700">
                   {stats?.queueStatus.map((dept, index) => (
-                    <tr key={index} className="hover:bg-primary-50/50 transition-colors duration-150">
+                    <tr key={index} className="hover:bg-primary-50/50 dark:hover:bg-primary-900/20 transition-colors duration-150">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-secondary-100 flex items-center justify-center">
-                            <span className="text-xs font-semibold text-secondary-600">
+                          <div className="w-8 h-8 rounded-lg bg-secondary-100 dark:bg-gray-700 flex items-center justify-center">
+                            <span className="text-xs font-semibold text-secondary-600 dark:text-gray-400">
                               {dept.department.substring(0, 2).toUpperCase()}
                             </span>
                           </div>
-                          <span className="text-sm font-medium text-secondary-900">{dept.department}</span>
+                          <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{dept.department}</span>
                         </div>
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
                           {dept.waiting} waiting
                         </span>
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                           {dept.inProgress} active
                         </span>
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <span className="text-sm font-semibold text-secondary-900">
+                        <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                           {dept.waiting + dept.inProgress}
                         </span>
                       </td>
@@ -219,7 +219,7 @@ export default function AdminDashboard() {
                     <tr>
                       <td colSpan={5} className="px-5 py-8 text-center">
                         <div className="flex flex-col items-center">
-                          <div className="w-12 h-12 rounded-xl bg-secondary-100 flex items-center justify-center mb-3">
+                          <div className="w-12 h-12 rounded-xl bg-secondary-100 dark:bg-gray-700 flex items-center justify-center mb-3">
                             <Activity className="w-6 h-6 text-secondary-400" />
                           </div>
                           <p className="text-sm text-secondary-500">No queue data available</p>
@@ -241,7 +241,7 @@ export default function AdminDashboard() {
           iconBgColor="bg-red-100"
           defaultCollapsed={true}
           collapsedContent={
-            <div className="flex items-center gap-4 text-sm text-secondary-600">
+            <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
               <span className="inline-flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4" />
                 {stats?.alerts?.length || 0} alert{((stats?.alerts?.length || 0) !== 1) ? 's' : ''}
@@ -264,10 +264,10 @@ export default function AdminDashboard() {
                 key={index}
                 className={`p-3 rounded-xl border transition-all duration-200 hover:shadow-sm ${
                   alert.type === 'inventory'
-                    ? 'bg-orange-50 border-orange-200'
+                    ? 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
                     : alert.type === 'billing'
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-blue-50 border-blue-200'
+                    ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                    : 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
                 }`}
               >
                 <div className="flex items-start gap-3">

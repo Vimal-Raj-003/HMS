@@ -148,6 +148,13 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
+      const hospitalId = req.user!.hospitalId;
+
+      // Verify queue entry belongs to this hospital
+      const existing = await prisma.queueEntry.findFirst({ where: { id, hospitalId } });
+      if (!existing) {
+        throw ApiError.notFound('Queue entry not found', 'QUEUE_NOT_FOUND');
+      }
 
       const queueEntry = await prisma.queueEntry.update({
         where: { id },
@@ -186,27 +193,48 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
+      const doctorId = req.user!.id;
+      const hospitalId = req.user!.hospitalId;
 
-      const queueEntry = await prisma.queueEntry.update({
-        where: { id },
-        data: {
-          status: 'COMPLETED',
-          completedAt: new Date(),
-        },
+      // Fetch and validate before updating
+      const entry = await prisma.queueEntry.findFirst({ where: { id, hospitalId } });
+      if (!entry) {
+        throw ApiError.notFound('Queue entry not found');
+      }
+      if (entry.doctorId !== doctorId) {
+        return res.status(403).json({ success: false, message: 'Not authorized to complete this entry' });
+      }
+      if (entry.status === 'COMPLETED') {
+        throw ApiError.conflict('Queue entry already completed', 'ALREADY_COMPLETED');
+      }
+
+      // Atomic update via transaction
+      await prisma.$transaction(async (tx) => {
+        await tx.queueEntry.update({
+          where: { id },
+          data: { status: 'COMPLETED', completedAt: new Date() },
+        });
+        if (entry.appointmentId) {
+          await tx.appointment.update({
+            where: { id: entry.appointmentId },
+            data: { status: 'COMPLETED' },
+          });
+        }
       });
 
-      // Update appointment status
-      if (queueEntry.appointmentId) {
-        await prisma.appointment.update({
-          where: { id: queueEntry.appointmentId },
-          data: { status: 'COMPLETED' },
+      // Emit real-time queue update
+      if (io) {
+        emitQueueUpdate(io, hospitalId, doctorId, {
+          appointmentId: entry.appointmentId,
+          status: 'COMPLETED',
+          timestamp: new Date().toISOString(),
         });
       }
 
       res.json({
         success: true,
         message: 'Consultation completed',
-        data: queueEntry,
+        data: entry,
       });
     } catch (error) {
       next(error);

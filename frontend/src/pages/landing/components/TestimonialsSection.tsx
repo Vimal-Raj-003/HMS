@@ -52,11 +52,13 @@ const testimonials = [
 const TestimonialsSection = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [direction, setDirection] = useState<'left' | 'right'>('right');
 
   useEffect(() => {
     if (!isAutoPlaying) return;
 
     const interval = setInterval(() => {
+      setDirection('right');
       setCurrentIndex((prev) => (prev + 1) % testimonials.length);
     }, 5000);
 
@@ -65,22 +67,30 @@ const TestimonialsSection = () => {
 
   const goToPrevious = () => {
     setIsAutoPlaying(false);
+    setDirection('left');
     setCurrentIndex((prev) => (prev - 1 + testimonials.length) % testimonials.length);
   };
 
   const goToNext = () => {
     setIsAutoPlaying(false);
+    setDirection('right');
     setCurrentIndex((prev) => (prev + 1) % testimonials.length);
   };
 
   const goToSlide = (index: number) => {
     setIsAutoPlaying(false);
+    setDirection(index > currentIndex ? 'right' : 'left');
     setCurrentIndex(index);
   };
 
+  const current = testimonials[currentIndex];
+
   return (
-    <section className="py-20 lg:py-28 bg-transparent relative overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-20 lg:py-28 relative overflow-hidden">
+      {/* Section background tint — warm teal-cyan wash */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-teal-50/30 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(20,184,166,0.03)_0%,transparent_60%)] pointer-events-none" />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-teal-50/80 backdrop-blur-sm rounded-full mb-6 border border-teal-100/50">
@@ -88,7 +98,7 @@ const TestimonialsSection = () => {
             <span className="text-sm font-semibold text-teal-700">Testimonials</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
-            What Our Patients Say
+            What Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-cyan-500">Patients</span> Say
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
             Real experiences from patients and healthcare providers who trust our platform
@@ -98,63 +108,77 @@ const TestimonialsSection = () => {
         {/* Testimonials Carousel */}
         <div className="relative">
           {/* Main Testimonial Card */}
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 max-w-3xl mx-auto transition-all duration-500 border border-white/50">
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-200/40 p-8 md:p-12 max-w-3xl mx-auto border border-slate-200/50 relative overflow-hidden">
+            {/* Decorative gradient accent */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-blue-500 to-teal-500"></div>
+
             {/* Quote Icon */}
-            <div className="absolute top-6 left-6 w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
+            <div className="absolute top-6 left-6 w-12 h-12 bg-gradient-to-br from-teal-100 to-teal-50 rounded-full flex items-center justify-center shadow-sm">
               <Quote className="w-6 h-6 text-teal-600" />
             </div>
-            
-            <div className="flex flex-col md:flex-row items-center gap-6">
-              <img
-                src={testimonials[currentIndex].avatar}
-                alt={testimonials[currentIndex].name}
-                className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-lg"
-              />
-              <div className="flex-1 text-center md:text-left">
-                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                  <h3 className="font-bold text-slate-900">{testimonials[currentIndex].name}</h3>
-                  <p className="text-sm text-slate-500">{testimonials[currentIndex].role}</p>
+
+            {/* Content with transition */}
+            <div
+              key={current.id}
+              className="transition-all duration-500 ease-out"
+              style={{
+                animation: `${direction === 'right' ? 'slideIn' : 'slideIn'} 0.4s ease-out`,
+              }}
+            >
+              <div className="flex flex-col md:flex-row items-center gap-6 mt-4">
+                <img
+                  src={current.avatar}
+                  alt={current.name}
+                  className="w-20 h-20 rounded-full object-cover border-3 border-white shadow-lg ring-2 ring-teal-100"
+                />
+                <div className="flex-1 text-center md:text-left">
+                  <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                    <h3 className="font-bold text-slate-900 text-lg">{current.name}</h3>
+                    <span className="text-sm text-slate-400">|</span>
+                    <p className="text-sm text-teal-600 font-medium">{current.role}</p>
+                  </div>
+                  <div className="flex items-center justify-center md:justify-start gap-1 mb-4">
+                    {[...Array(current.rating)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 text-amber-400 fill-current" />
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center justify-center md:justify-start gap-1 mb-4">
-                  {[...Array(testimonials[currentIndex].rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 text-amber-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-slate-600 text-sm mt-2">{testimonials[currentIndex].date}</p>
               </div>
+
+              <blockquote className="text-slate-700 text-lg leading-relaxed text-center md:text-left mt-4 italic">
+                "{current.text}"
+              </blockquote>
+
+              <p className="text-slate-400 text-sm mt-4 text-center md:text-left">{current.date}</p>
             </div>
-            
-            <p className="text-slate-700 text-lg leading-relaxed text-center md:text-left">
-              "{testimonials[currentIndex].text}"
-            </p>
           </div>
 
           {/* Navigation Buttons */}
           <div className="flex justify-center items-center gap-4 mt-8">
             <button
               onClick={goToPrevious}
-              className="p-3 rounded-full bg-white/80 hover:bg-white shadow-lg hover:shadow-slate-200/50 transition-all duration-300 border border-slate-100/50"
+              className="p-3 rounded-full bg-white/80 hover:bg-white shadow-lg hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 border border-slate-100/50 hover:-translate-y-0.5 group"
             >
-              <ChevronLeft className="w-5 h-5 text-slate-600" />
+              <ChevronLeft className="w-5 h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
             </button>
             <div className="flex gap-2">
               {testimonials.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => goToSlide(index)}
-                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                  className={`rounded-full transition-all duration-300 ${
                     index === currentIndex
-                      ? 'bg-teal-500 scale-100'
-                      : 'bg-slate-200 hover:bg-slate-300'
+                      ? 'w-8 h-2.5 bg-gradient-to-r from-teal-500 to-blue-500'
+                      : 'w-2.5 h-2.5 bg-slate-200 hover:bg-slate-300'
                   }`}
                 />
               ))}
             </div>
             <button
               onClick={goToNext}
-              className="p-3 rounded-full bg-white/80 hover:bg-white shadow-lg hover:shadow-slate-200/50 transition-all duration-300 border border-slate-100/50"
+              className="p-3 rounded-full bg-white/80 hover:bg-white shadow-lg hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 border border-slate-100/50 hover:-translate-y-0.5 group"
             >
-              <ChevronRight className="w-5 h-5 text-slate-600" />
+              <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
             </button>
           </div>
         </div>

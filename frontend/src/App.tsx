@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/auth.store';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -26,6 +27,7 @@ import Appointments from './pages/admin/Appointments';
 import QueueManagement from './pages/admin/QueueManagement';
 import Billing from './pages/admin/Billing';
 import Reports from './pages/admin/Reports';
+import AdminSettings from './pages/admin/Settings';
 
 // Doctor Pages
 import PatientQueue from './pages/doctor/PatientQueue';
@@ -40,6 +42,7 @@ import PatientSearch from './pages/nurse/PatientSearch';
 import PendingPrescriptions from './pages/pharmacy/PendingPrescriptions';
 import Inventory from './pages/pharmacy/Inventory';
 import DispenseMedicine from './pages/pharmacy/DispenseMedicine';
+import ManualBilling from './pages/pharmacy/ManualBilling';
 import Bills from './pages/pharmacy/Bills';
 import Expenses from './pages/pharmacy/Expenses';
 import PharmacyReports from './pages/pharmacy/Reports';
@@ -142,6 +145,7 @@ function App() {
   };
 
   return (
+    <ThemeProvider>
     <Routes>
       {/* Landing Page - Public Route */}
       <Route path="/" element={<LandingPage />} />
@@ -203,6 +207,7 @@ function App() {
         <Route path="queue" element={<QueueManagement />} />
         <Route path="billing" element={<Billing />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
 
       {/* Doctor Routes */}
@@ -251,6 +256,7 @@ function App() {
         <Route path="dashboard" element={<PharmacyDashboard />} />
         <Route path="prescriptions" element={<PendingPrescriptions />} />
         <Route path="dispense/:prescriptionId" element={<DispenseMedicine />} />
+        <Route path="manual-billing" element={<ManualBilling />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="bills" element={<Bills />} />
         <Route path="expenses" element={<Expenses />} />
@@ -308,6 +314,7 @@ function App() {
       {/* Catch all - 404: Redirect to Landing Page */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </ThemeProvider>
   );
 }
 

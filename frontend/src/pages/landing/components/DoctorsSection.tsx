@@ -66,8 +66,10 @@ const doctors = [
 
 const DoctorsSection = () => {
   return (
-    <section id="doctors" className="py-20 lg:py-28 bg-transparent relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="doctors" className="py-20 lg:py-28 relative">
+      {/* Section background tint — subtle indigo-blue */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-50/25 to-transparent pointer-events-none" />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50/80 backdrop-blur-sm rounded-full mb-6 border border-blue-100/50">
@@ -75,7 +77,7 @@ const DoctorsSection = () => {
             <span className="text-sm font-semibold text-blue-700">Expert Care Team</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
-            Meet Our Expert Doctors
+            Meet Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Expert Doctors</span>
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
             Our team of highly qualified medical professionals is dedicated to providing 

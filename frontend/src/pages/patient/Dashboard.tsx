@@ -18,6 +18,7 @@ import { patientPortalAPI } from '../../lib/api';
 import { toast } from 'react-hot-toast';
 import { SkeletonDashboard } from '../../components/ui/Skeleton';
 import CollapsibleCard from '../../components/ui/CollapsibleCard';
+import StatCard from '../../components/ui/StatCard';
 
 interface Appointment {
   id: string;
@@ -33,14 +34,14 @@ interface Appointment {
 
 const getStatusBadge = (status: string) => {
   const statusStyles: Record<string, { bg: string; text: string; border: string; icon: string }> = {
-    PENDING_APPROVAL: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', icon: '⏳' },
-    SCHEDULED: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: '📅' },
-    CONFIRMED: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', icon: '✅' },
-    IN_PROGRESS: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', icon: '🏥' },
-    COMPLETED: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: '✔️' },
-    CANCELLED: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: '❌' },
-    REJECTED: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: '🚫' },
-    NO_SHOW: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', icon: '⚠️' },
+    PENDING_APPROVAL: { bg: 'bg-yellow-50 dark:bg-yellow-900/30', text: 'text-yellow-700', border: 'border-yellow-200', icon: '⏳' },
+    SCHEDULED: { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-700', border: 'border-blue-200', icon: '📅' },
+    CONFIRMED: { bg: 'bg-green-50 dark:bg-green-900/30', text: 'text-green-700', border: 'border-green-200', icon: '✅' },
+    IN_PROGRESS: { bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-700', border: 'border-purple-200', icon: '🏥' },
+    COMPLETED: { bg: 'bg-gray-50 dark:bg-gray-900/30', text: 'text-gray-700', border: 'border-gray-200', icon: '✔️' },
+    CANCELLED: { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-700', border: 'border-red-200', icon: '❌' },
+    REJECTED: { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-700', border: 'border-red-200', icon: '🚫' },
+    NO_SHOW: { bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-700', border: 'border-orange-200', icon: '⚠️' },
   };
 
   const statusLabels: Record<string, string> = {
@@ -54,7 +55,7 @@ const getStatusBadge = (status: string) => {
     NO_SHOW: 'No Show',
   };
 
-  const style = statusStyles[status] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: '' };
+  const style = statusStyles[status] || { bg: 'bg-gray-50 dark:bg-gray-900/30', text: 'text-gray-700', border: 'border-gray-200', icon: '' };
 
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border ${style.bg} ${style.text} ${style.border}`}>
@@ -97,48 +98,29 @@ export default function PatientDashboard() {
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* Dashboard Cards - Total Appointments, Patient ID, and Book Appointment */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-5 hover:shadow-card-hover transition-shadow duration-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-blue-100">
-              <Calendar className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-secondary-500 font-medium">Total Appointments</p>
-              <p className="text-2xl font-bold text-secondary-900">{totalAppointments}</p>
-              <p className="text-xs text-secondary-400 mt-1">All booked appointments</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-5 hover:shadow-card-hover transition-shadow duration-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-healthcare-100">
-              <User className="w-6 h-6 text-healthcare-600" />
-            </div>
-            <div>
-              <p className="text-sm text-secondary-500 font-medium">Patient ID</p>
-              <p className="text-2xl font-bold text-secondary-900">{user?.patientNumber || 'N/A'}</p>
-              <p className="text-xs text-secondary-400 mt-1">Unique patient identifier</p>
-            </div>
-          </div>
-        </div>
-
-        <Link
-          to="/patient/book"
-          className="bg-white rounded-xl border border-secondary-200 shadow-card p-5 hover:shadow-card-hover transition-all duration-200 hover:border-primary-300 hover:-translate-y-0.5 cursor-pointer group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-green-100 group-hover:bg-green-200 transition-colors duration-200">
-              <Plus className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-secondary-500 font-medium">Book Appointment</p>
-              <p className="text-2xl font-bold text-secondary-900">Schedule</p>
-              <p className="text-xs text-secondary-400 mt-1">Book a new appointment</p>
-            </div>
-          </div>
-        </Link>
+      <div className="hms-stats-grid">
+        <StatCard
+          title="Total Appointments"
+          value={totalAppointments}
+          icon={<Calendar className="w-6 h-6" />}
+          color="blue"
+          subtitle="All booked appointments"
+        />
+        <StatCard
+          title="Patient ID"
+          value={user?.patientNumber || 'N/A'}
+          icon={<User className="w-6 h-6" />}
+          color="teal"
+          subtitle="Unique patient identifier"
+        />
+        <StatCard
+          title="Book Appointment"
+          value="Schedule"
+          icon={<Plus className="w-6 h-6" />}
+          color="green"
+          subtitle="Book a new appointment"
+          onClick={() => window.location.href = '/patient/book'}
+        />
       </div>
 
       {/* Upcoming Appointments - Collapsible */}
@@ -147,7 +129,7 @@ export default function PatientDashboard() {
         subtitle="Your scheduled visits"
         icon={<Calendar className="w-5 h-5 text-blue-600" />}
         iconBgColor="bg-blue-100"
-        defaultCollapsed={true}
+        defaultCollapsed={false}
         collapsedContent={
           <div className="flex items-center gap-4 text-sm text-secondary-600">
             <span className="inline-flex items-center gap-1.5">
@@ -168,7 +150,7 @@ export default function PatientDashboard() {
         <div className="p-5">
           {upcomingAppointments.length === 0 ? (
             <div className="flex flex-col items-center py-10">
-              <div className="w-16 h-16 rounded-2xl bg-secondary-100 flex items-center justify-center mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-secondary-100 dark:bg-gray-700 flex items-center justify-center mb-4">
                 <Calendar className="w-8 h-8 text-secondary-400" />
               </div>
               <p className="text-sm font-medium text-secondary-700">No upcoming appointments</p>
@@ -183,7 +165,7 @@ export default function PatientDashboard() {
               {upcomingAppointments.map((appointment) => (
                 <div
                   key={appointment.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-gradient-to-r from-secondary-50 to-transparent rounded-xl border border-secondary-100 hover:border-primary-200 hover:shadow-sm transition-all duration-200"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-gradient-to-r from-secondary-50 to-transparent dark:from-gray-800 dark:to-transparent rounded-xl border border-secondary-100 dark:border-gray-700 hover:border-primary-200 hover:shadow-sm transition-all duration-200"
                 >
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
@@ -191,7 +173,7 @@ export default function PatientDashboard() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-secondary-900">{appointment.doctorName}</p>
+                        <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{appointment.doctorName}</p>
                         {getStatusBadge(appointment.status)}
                         {appointment.doctorUnavailable && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border bg-red-50 text-red-700 border-red-200">
@@ -200,14 +182,14 @@ export default function PatientDashboard() {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-secondary-500">{appointment.specialization}</p>
-                      <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-secondary-600">
+                      <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{appointment.specialization}</p>
+                      <div className="flex flex-wrap items-center gap-3 mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                         <span className="inline-flex items-center gap-1.5">
-                          <Calendar className="w-4 h-4 text-secondary-400" />
+                          <Calendar className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
                           {appointment.date}
                         </span>
                         <span className="inline-flex items-center gap-1.5">
-                          <Clock className="w-4 h-4 text-secondary-400" />
+                          <Clock className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
                           {appointment.time}
                         </span>
                         <span className="inline-flex items-center gap-1.5">

@@ -26,14 +26,32 @@ export default function Appointments() {
     fetchAppointments();
   }, [filter, dateFilter]);
 
+  const mapAppointment = (raw: any): Appointment => ({
+    id: raw.id,
+    patientName: raw.patient
+      ? `${raw.patient.firstName} ${raw.patient.lastName}`
+      : raw.patientName || 'Unknown',
+    patientPhone: raw.patient?.phone || raw.patientPhone || '',
+    doctorName: raw.doctor
+      ? `Dr. ${raw.doctor.firstName} ${raw.doctor.lastName}`
+      : raw.doctorName || '',
+    doctorSpecialization: raw.doctor?.specialty || raw.doctorSpecialization || '',
+    date: raw.appointmentDate || raw.date || '',
+    time: raw.startTime || raw.time || '',
+    status: raw.status || 'SCHEDULED',
+    type: raw.type || 'CONSULTATION',
+    notes: raw.chiefComplaint || raw.notes || '',
+  });
+
   const fetchAppointments = async () => {
     try {
       const params = new URLSearchParams();
       if (dateFilter) params.append('date', dateFilter);
       if (filter !== 'all') params.append('status', filter);
-      
+
       const response = await api.get(`/admin/appointments?${params.toString()}`);
-      setAppointments(response.data);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setAppointments(data.map(mapAppointment));
     } catch (error) {
       console.error('Error fetching appointments:', error);
     } finally {
@@ -43,7 +61,13 @@ export default function Appointments() {
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      await api.patch(`/admin/appointments/${id}/status`, { status });
+      if (status === 'CANCELLED') {
+        await api.put(`/appointments/${id}/cancel`, { reason: 'Cancelled by admin' });
+      } else if (status === 'CONFIRMED') {
+        await api.put(`/doctors/appointments/${id}/accept`);
+      } else if (status === 'REJECTED') {
+        await api.put(`/doctors/appointments/${id}/reject`, { reason: 'Rejected by admin' });
+      }
       fetchAppointments();
     } catch (error) {
       console.error('Error updating appointment:', error);

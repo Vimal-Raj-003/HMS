@@ -172,6 +172,12 @@ interface PatientDocument {
   createdAt: string;
 }
 
+interface WarningCategory {
+  label: string;
+  icon: string;
+  fields: string[];
+}
+
 // Helper function to get local date string in IST format
 const getLocalDateString = () => {
   const now = new Date();
@@ -192,6 +198,11 @@ export default function ConsultationWorkspace() {
   const [isQueueCollapsed, setIsQueueCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'vitals' | 'prescription' | 'records' | 'lab'>('vitals');
   const [feedbackMessage, setFeedbackMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Warning dialog state for flexible completion
+  const [showWarningDialog, setShowWarningDialog] = useState(false);
+  const [warningCategories, setWarningCategories] = useState<WarningCategory[]>([]);
+  const [showFieldWarnings, setShowFieldWarnings] = useState(false);
 
   // Medical Records and Lab Reports state
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
@@ -366,6 +377,8 @@ export default function ConsultationWorkspace() {
     });
     setMedicines([]);
     setActiveTab('vitals');
+    setShowFieldWarnings(false);
+    setShowWarningDialog(false);
 
     // Fetch patient records and lab reports
     fetchPatientRecords(patient.patientId);
@@ -393,7 +406,7 @@ export default function ConsultationWorkspace() {
   const handleSubmit = async (action: 'save' | 'complete') => {
     if (!selectedPatient) return;
 
-    // Validate required fields
+    // Validate truly required fields (system-level, not clinical)
     if (!selectedPatient.patientId) {
       setFeedbackMessage({ message: 'Patient ID is missing. Please select a patient.', type: 'error' });
       return;
@@ -403,9 +416,104 @@ export default function ConsultationWorkspace() {
       return;
     }
 
+    if (action === 'save') {
+      // Draft save — no warnings needed
+      await submitConsultation('save');
+      return;
+    }
+
+    // For completion: analyze completeness and show warning dialog if needed
+    const warnings = analyzeCompleteness();
+    if (warnings.length > 0) {
+      setWarningCategories(warnings);
+      setShowFieldWarnings(true);
+      setShowWarningDialog(true);
+    } else {
+      // All fields filled — simple confirmation
+      const confirmed = window.confirm(
+        'Are you sure you want to complete this consultation? This action cannot be undone.'
+      );
+      if (!confirmed) return;
+      await submitConsultation('complete');
+    }
+  };
+
+  const handleNextPatient = async () => {
+    const nextPatient = queue.find(p => p.status === 'WAITING');
+    if (nextPatient) {
+      try {
+        await selectPatient(nextPatient);
+      } catch (error) {
+        console.error('Error selecting next patient:', error);
+        setFeedbackMessage({ message: 'Failed to load next patient. Please try again.', type: 'error' });
+      }
+    } else {
+      setFeedbackMessage({ message: 'No more patients in queue', type: 'success' });
+    }
+  };
+
+  const analyzeCompleteness = (): WarningCategory[] => {
+    const categories: WarningCategory[] = [];
+
+    // Clinical notes
+    const clinicalMissing: string[] = [];
+    if (!consultation.chiefComplaint.trim()) clinicalMissing.push('Chief Complaint');
+    if (!consultation.diagnosis.trim()) clinicalMissing.push('Diagnosis');
+    if (!consultation.symptoms.trim()) clinicalMissing.push('Symptoms');
+    if (!consultation.clinicalObservations.trim()) clinicalMissing.push('Clinical Observations');
+    if (!consultation.doctorNotes.trim()) clinicalMissing.push('Doctor Notes');
+    if (clinicalMissing.length > 0) {
+      categories.push({ label: 'Clinical Notes', icon: 'clinical', fields: clinicalMissing });
+    }
+
+    // Vitals
+    const vitalsMissing: string[] = [];
+    if (!vitals.bloodPressure.trim()) vitalsMissing.push('Blood Pressure');
+    if (!vitals.pulse.trim()) vitalsMissing.push('Heart Rate');
+    if (!vitals.temperature.trim()) vitalsMissing.push('Temperature');
+    if (!vitals.weight.trim()) vitalsMissing.push('Weight');
+    if (!vitals.spo2.trim()) vitalsMissing.push('SpO2');
+    if (!vitals.respiratoryRate.trim()) vitalsMissing.push('Respiratory Rate');
+    if (!vitals.height.trim()) vitalsMissing.push('Height');
+    if (vitalsMissing.length > 0) {
+      categories.push({ label: 'Vitals', icon: 'vitals', fields: vitalsMissing });
+    }
+
+    // Prescription
+    if (medicines.length === 0) {
+      categories.push({ label: 'Prescription', icon: 'prescription', fields: ['No medicines prescribed'] });
+    } else {
+      const incompleteMeds = medicines.filter(m => !m.name.trim() || !m.dosage.trim() || !m.frequency.trim());
+      if (incompleteMeds.length > 0) {
+        categories.push({ label: 'Prescription', icon: 'prescription', fields: [`${incompleteMeds.length} medicine(s) with incomplete details`] });
+      }
+    }
+
+    // Lab tests
+    if (consultation.labTestsRecommended.length === 0) {
+      categories.push({ label: 'Lab Tests', icon: 'lab', fields: ['No lab tests recommended'] });
+    }
+
+    // Follow-up
+    if (!consultation.followUpDate) {
+      categories.push({ label: 'Follow-up', icon: 'followup', fields: ['No follow-up date set'] });
+    }
+
+    return categories;
+  };
+
+  const handleProceedAnyway = async () => {
+    setShowWarningDialog(false);
+    setShowFieldWarnings(false);
+    // Proceed directly to save with COMPLETED status, bypassing validation
+    await submitConsultation('complete');
+  };
+
+  const submitConsultation = async (action: 'save' | 'complete') => {
+    if (!selectedPatient) return;
+
     setSaving(true);
     try {
-      // Build payload matching backend expectations
       const payload = {
         patientId: selectedPatient.patientId,
         appointmentId: selectedPatient.appointmentId,
@@ -431,19 +539,13 @@ export default function ConsultationWorkspace() {
       await doctorAPI.saveConsultation(payload);
 
       if (action === 'complete') {
-        // Update queue status
         const updatedQueue = queue.map(p =>
           p.id === selectedPatient.id ? { ...p, status: 'COMPLETED' as const } : p
         );
         setQueue(updatedQueue);
+        setStats(prev => ({ ...prev, completed: prev.completed + 1 }));
+        fetchQueue();
 
-        // Update stats
-        setStats(prev => ({
-          ...prev,
-          completed: prev.completed + 1,
-        }));
-
-        // Select next waiting patient
         const nextPatient = updatedQueue.find(p => p.status === 'WAITING');
         if (nextPatient) {
           selectPatient(nextPatient);
@@ -455,25 +557,32 @@ export default function ConsultationWorkspace() {
       } else {
         setFeedbackMessage({ message: 'Consultation saved as draft', type: 'success' });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving consultation:', error);
-      setFeedbackMessage({ message: 'Failed to save consultation. Please try again.', type: 'error' });
+      console.error('Error response:', error?.response?.data);
+
+      const errorCode = error?.response?.data?.error;
+      if (errorCode === 'ALREADY_COMPLETED') {
+        setFeedbackMessage({ message: 'This consultation has already been completed.', type: 'error' });
+        fetchQueue();
+        if (selectedPatient) {
+          setQueue(prev =>
+            prev.map(p =>
+              p.id === selectedPatient.id ? { ...p, status: 'COMPLETED' as const } : p
+            )
+          );
+        }
+        setSelectedPatient(null);
+        return;
+      }
+
+      const errorMessage = error?.response?.data?.message ||
+                          error?.response?.data?.error ||
+                          error?.message ||
+                          'Failed to save consultation. Please try again.';
+      setFeedbackMessage({ message: `Failed to save consultation: ${errorMessage}`, type: 'error' });
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleNextPatient = async () => {
-    const nextPatient = queue.find(p => p.status === 'WAITING');
-    if (nextPatient) {
-      try {
-        await selectPatient(nextPatient);
-      } catch (error) {
-        console.error('Error selecting next patient:', error);
-        setFeedbackMessage({ message: 'Failed to load next patient. Please try again.', type: 'error' });
-      }
-    } else {
-      setFeedbackMessage({ message: 'No more patients in queue', type: 'success' });
     }
   };
 
@@ -947,52 +1056,97 @@ export default function ConsultationWorkspace() {
                       </h4>
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs text-secondary-500 mb-1">Chief Complaint</label>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Chief Complaint
+                            {showFieldWarnings && !consultation.chiefComplaint.trim() && (
+                              <span className="ml-2 text-amber-600 font-medium">— Missing</span>
+                            )}
+                          </label>
                           <textarea
                             value={consultation.chiefComplaint}
                             onChange={(e) => setConsultation({ ...consultation, chiefComplaint: e.target.value })}
                             rows={2}
-                            className="w-full rounded-lg border-secondary-300 border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                            className={`w-full rounded-lg border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 ${
+                              showFieldWarnings && !consultation.chiefComplaint.trim()
+                                ? 'border-amber-400 bg-amber-50/30'
+                                : 'border-secondary-300'
+                            }`}
                             placeholder="Patient's main complaint..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-secondary-500 mb-1">Symptoms</label>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Symptoms
+                            {showFieldWarnings && !consultation.symptoms.trim() && (
+                              <span className="ml-2 text-amber-600 font-medium">— Missing</span>
+                            )}
+                          </label>
                           <textarea
                             value={consultation.symptoms}
                             onChange={(e) => setConsultation({ ...consultation, symptoms: e.target.value })}
                             rows={2}
-                            className="w-full rounded-lg border-secondary-300 border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                            className={`w-full rounded-lg border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 ${
+                              showFieldWarnings && !consultation.symptoms.trim()
+                                ? 'border-amber-400 bg-amber-50/30'
+                                : 'border-secondary-300'
+                            }`}
                             placeholder="Associated symptoms..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-secondary-500 mb-1">Diagnosis</label>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Diagnosis
+                            {showFieldWarnings && !consultation.diagnosis.trim() && (
+                              <span className="ml-2 text-amber-600 font-medium">— Missing</span>
+                            )}
+                          </label>
                           <input
                             type="text"
                             value={consultation.diagnosis}
                             onChange={(e) => setConsultation({ ...consultation, diagnosis: e.target.value })}
-                            className="w-full rounded-lg border-secondary-300 border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                            className={`w-full rounded-lg border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 ${
+                              showFieldWarnings && !consultation.diagnosis.trim()
+                                ? 'border-amber-400 bg-amber-50/30'
+                                : 'border-secondary-300'
+                            }`}
                             placeholder="Working diagnosis..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-secondary-500 mb-1">Clinical Observations</label>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Clinical Observations
+                            {showFieldWarnings && !consultation.clinicalObservations.trim() && (
+                              <span className="ml-2 text-amber-600 font-medium">— Missing</span>
+                            )}
+                          </label>
                           <textarea
                             value={consultation.clinicalObservations}
                             onChange={(e) => setConsultation({ ...consultation, clinicalObservations: e.target.value })}
                             rows={2}
-                            className="w-full rounded-lg border-secondary-300 border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                            className={`w-full rounded-lg border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 ${
+                              showFieldWarnings && !consultation.clinicalObservations.trim()
+                                ? 'border-amber-400 bg-amber-50/30'
+                                : 'border-secondary-300'
+                            }`}
                             placeholder="Physical examination findings..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-secondary-500 mb-1">Doctor Notes</label>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Doctor Notes
+                            {showFieldWarnings && !consultation.doctorNotes.trim() && (
+                              <span className="ml-2 text-amber-600 font-medium">— Missing</span>
+                            )}
+                          </label>
                           <textarea
                             value={consultation.doctorNotes}
                             onChange={(e) => setConsultation({ ...consultation, doctorNotes: e.target.value })}
                             rows={2}
-                            className="w-full rounded-lg border-secondary-300 border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                            className={`w-full rounded-lg border p-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 ${
+                              showFieldWarnings && !consultation.doctorNotes.trim()
+                                ? 'border-amber-400 bg-amber-50/30'
+                                : 'border-secondary-300'
+                            }`}
                             placeholder="Additional clinical notes..."
                           />
                         </div>
@@ -1601,6 +1755,89 @@ export default function ConsultationWorkspace() {
           )}
         </div>
       </div>
+
+      {/* Completion Warning Dialog */}
+      {showWarningDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 bg-amber-50 border-b border-amber-200 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-secondary-900">Incomplete Consultation</h3>
+                <p className="text-sm text-secondary-600">
+                  The following fields are missing or incomplete
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowWarningDialog(false); setShowFieldWarnings(false); }}
+                className="ml-auto p-1.5 hover:bg-amber-100 rounded-lg"
+              >
+                <X className="w-5 h-5 text-secondary-500" />
+              </button>
+            </div>
+
+            {/* Warning Categories */}
+            <div className="px-6 py-4 max-h-[360px] overflow-y-auto space-y-3">
+              {warningCategories.map((cat, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-lg border border-amber-100 bg-amber-50/50"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    {cat.icon === 'clinical' && <FileText className="w-4 h-4 text-amber-600" />}
+                    {cat.icon === 'vitals' && <Heart className="w-4 h-4 text-amber-600" />}
+                    {cat.icon === 'prescription' && <Stethoscope className="w-4 h-4 text-amber-600" />}
+                    {cat.icon === 'lab' && <FlaskConical className="w-4 h-4 text-amber-600" />}
+                    {cat.icon === 'followup' && <Calendar className="w-4 h-4 text-amber-600" />}
+                    <span className="text-sm font-semibold text-secondary-800">{cat.label}</span>
+                  </div>
+                  <ul className="space-y-1 ml-6">
+                    {cat.fields.map((field, fIdx) => (
+                      <li key={fIdx} className="text-sm text-secondary-600 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                        {field}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 border-t border-secondary-200 bg-secondary-50 flex items-center justify-between gap-3">
+              <button
+                onClick={() => {
+                  setShowWarningDialog(false);
+                  // Navigate to first tab with missing content
+                  const hasClinical = warningCategories.some(c => c.icon === 'clinical' || c.icon === 'vitals');
+                  const hasPrescription = warningCategories.some(c => c.icon === 'prescription' || c.icon === 'lab' || c.icon === 'followup');
+                  if (hasClinical) setActiveTab('vitals');
+                  else if (hasPrescription) setActiveTab('prescription');
+                }}
+                className="px-5 py-2.5 border border-secondary-300 text-secondary-700 rounded-lg hover:bg-white font-medium text-sm flex items-center gap-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Review & Update
+              </button>
+              <button
+                onClick={handleProceedAnyway}
+                disabled={saving}
+                className="px-5 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium text-sm flex items-center gap-2 disabled:opacity-50"
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                Proceed Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Medical Record Detail Modal */}
       {showRecordModal && selectedRecord && (

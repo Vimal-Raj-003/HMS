@@ -623,8 +623,9 @@ model LabOrder {
   visitId         String?  @map("visit_id")
   orderNumber     String   @unique @map("order_number") // LAB-001234
   priority        String   @default("normal") // normal, urgent, critical
-  status          String   @default("ordered") // ordered, sample_collected, processing, completed, cancelled
-  notes           String?
+  status          String   @default("recommended") // recommended, ordered, assigned, sample_collected, in_progress, processing, completed, cancelled
+  isUrgent        Boolean  @default(false) @map("is_urgent")
+  notes           String?  // Doctor notes
   sampleId        String?  @map("sample_id")
   sampleType      String?  @map("sample_type")
   sampleCollectedAt DateTime? @map("sample_collected_at")
@@ -642,6 +643,7 @@ model LabOrder {
   items           LabOrderItem[]
   sample          LabSample?
   billing         LabBilling?
+  results         LabResult[]
 
   @@map("lab_orders")
 }
@@ -712,6 +714,30 @@ model LabBilling {
   labOrder        LabOrder @relation(fields: [labOrderId], references: [id])
 
   @@map("lab_billing")
+}
+
+// Lab Results - Comprehensive result storage with file support
+model LabResult {
+  id              String   @id @default(uuid())
+  labOrderId      String   @map("lab_order_id")
+  patientId       String   @map("patient_id")
+  doctorId        String?  @map("doctor_id")
+  testName        String   @map("test_name")
+  resultData      String   @map("result_data") @db.Text // JSON string with all parameters and values
+  fileUrl         String?  @map("file_url") @db.Text // Optional PDF report URL
+  fileType        String?  @map("file_type") // application/pdf, etc.
+  status          String   @default("pending") // pending, completed
+  notes           String?
+  createdBy       String?  @map("created_by") // Lab tech who entered results
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  labOrder        LabOrder @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([labOrderId])
+  @@map("lab_results")
 }
 
 // ============================================

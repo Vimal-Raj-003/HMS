@@ -1,35 +1,57 @@
 import { Server, Socket } from 'socket.io';
+import jwt from 'jsonwebtoken';
 
-interface SocketData {
-  userId?: string;
-  userRole?: string;
-  hospitalId?: string;
+interface SocketAuthData {
+  userId: string;
+  userRole: string;
+  hospitalId: string;
 }
 
-// Store connected users
-const connectedUsers = new Map<string, SocketData>();
+// Store connected users (socketId -> auth data)
+const connectedUsers = new Map<string, SocketAuthData>();
 
 export const initializeSocket = (io: Server) => {
   io.on('connection', (socket: Socket) => {
     console.log(`Client connected: ${socket.id}`);
 
-    // Authentication
-    socket.on('authenticate', (data: { userId: string; userRole: string; hospitalId: string }) => {
-      socket.data = data;
-      connectedUsers.set(socket.id, data);
+    // Authentication - requires JWT token verification
+    socket.on('authenticate', (data: { token: string }) => {
+      try {
+        // Verify the JWT token
+        const decoded = jwt.verify(data.token, process.env.JWT_SECRET!) as jwt.JwtPayload;
+        
+        // Extract user info from the verified token
+        const authData: SocketAuthData = {
+          userId: decoded.id,
+          userRole: decoded.role,
+          hospitalId: decoded.hospitalId,
+        };
 
-      // Join hospital-specific room
-      socket.join(`hospital:${data.hospitalId}`);
+        // Store verified auth data
+        socket.data = authData;
+        connectedUsers.set(socket.id, authData);
 
-      // Join role-specific room
-      socket.join(`hospital:${data.hospitalId}:role:${data.userRole}`);
+        // Join hospital-specific room
+        socket.join(`hospital:${authData.hospitalId}`);
 
-      // Join user-specific room
-      socket.join(`user:${data.userId}`);
+        // Join role-specific room
+        socket.join(`hospital:${authData.hospitalId}:role:${authData.userRole}`);
 
-      console.log(`User ${data.userId} authenticated as ${data.userRole}`);
-      
-      socket.emit('authenticated', { success: true });
+        // Join user-specific room
+        socket.join(`user:${authData.userId}`);
+
+        console.log(`User ${authData.userId} authenticated as ${authData.userRole}`);
+        
+        socket.emit('authenticated', { success: true });
+      } catch (error) {
+        console.warn(`Socket authentication failed for ${socket.id}:`, error instanceof Error ? error.message : 'Unknown error');
+        socket.emit('authentication-error', { 
+          success: false, 
+          message: 'Invalid or expired token' 
+        });
+        // Disconnect the unauthenticated socket
+        socket.disconnect(true);
+      }
     });
 
     // Queue updates
@@ -130,6 +152,13 @@ export const emitLabResultReady = (io: Server, patientId: string, doctorId: stri
 
 export const emitNewPrescription = (io: Server, hospitalId: string, data: { patientId: string; prescriptionId: string }) => {
   io.to(`hospital:${hospitalId}:role:PHARMACIST`).emit('new-prescription', {
+    ...data,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+export const emitNewLabOrder = (io: Server, hospitalId: string, data: { patientId: string; orderId: string; doctorId: string }) => {
+  io.to(`hospital:${hospitalId}:role:LAB_TECH`).emit('new-lab-order', {
     ...data,
     timestamp: new Date().toISOString(),
   });

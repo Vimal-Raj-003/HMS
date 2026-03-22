@@ -21,44 +21,44 @@ interface StatCardProps {
 // Futuristic color variants aligned with design system
 const colorVariants = {
   blue: {
-    bg: 'bg-primary-50',
-    icon: 'text-primary-600',
-    border: 'border-primary-100',
+    bg: 'bg-primary-50 dark:bg-primary-900/30',
+    icon: 'text-primary-600 dark:text-primary-400',
+    border: 'border-primary-100 dark:border-primary-800',
     trend: 'text-primary-600',
     gradient: 'from-primary-500 to-primary-600',
   },
   green: {
-    bg: 'bg-green-50',
-    icon: 'text-green-600',
-    border: 'border-green-100',
+    bg: 'bg-green-50 dark:bg-green-900/30',
+    icon: 'text-green-600 dark:text-green-400',
+    border: 'border-green-100 dark:border-green-800',
     trend: 'text-green-600',
     gradient: 'from-green-500 to-green-600',
   },
   purple: {
-    bg: 'bg-purple-50',
-    icon: 'text-purple-600',
-    border: 'border-purple-100',
+    bg: 'bg-purple-50 dark:bg-purple-900/30',
+    icon: 'text-purple-600 dark:text-purple-400',
+    border: 'border-purple-100 dark:border-purple-800',
     trend: 'text-purple-600',
     gradient: 'from-purple-500 to-purple-600',
   },
   yellow: {
-    bg: 'bg-amber-50',
-    icon: 'text-amber-600',
-    border: 'border-amber-100',
+    bg: 'bg-amber-50 dark:bg-amber-900/30',
+    icon: 'text-amber-600 dark:text-amber-400',
+    border: 'border-amber-100 dark:border-amber-800',
     trend: 'text-amber-600',
     gradient: 'from-amber-500 to-amber-600',
   },
   red: {
-    bg: 'bg-red-50',
-    icon: 'text-red-600',
-    border: 'border-red-100',
+    bg: 'bg-red-50 dark:bg-red-900/30',
+    icon: 'text-red-600 dark:text-red-400',
+    border: 'border-red-100 dark:border-red-800',
     trend: 'text-red-600',
     gradient: 'from-red-500 to-red-600',
   },
   teal: {
-    bg: 'bg-teal-50',
-    icon: 'text-teal-600',
-    border: 'border-teal-100',
+    bg: 'bg-teal-50 dark:bg-teal-900/30',
+    icon: 'text-teal-600 dark:text-teal-400',
+    border: 'border-teal-100 dark:border-teal-800',
     trend: 'text-teal-600',
     gradient: 'from-teal-500 to-teal-600',
   },
@@ -81,22 +81,23 @@ export default function StatCard({
     <div
       onClick={onClick}
       className={`
-        relative bg-white rounded-xl p-4
+        relative rounded-xl p-4
         transition-all duration-200 overflow-hidden
         ${isInteractive ? 'cursor-pointer hover:-translate-y-0.5 group' : ''}
         ${className}
       `}
       style={{
-        border: '1px solid #E2E8F0',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+        backgroundColor: 'var(--color-card-bg)',
+        border: '1px solid var(--color-card-border)',
+        boxShadow: 'var(--shadow-card)',
       }}
       onMouseEnter={(e) => {
         if (isInteractive) {
-          e.currentTarget.style.boxShadow = '0 8px 24px rgba(37, 99, 235, 0.15)';
+          e.currentTarget.style.boxShadow = 'var(--shadow-card-hover)';
         }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-card)';
       }}
     >
       {/* Futuristic top accent line - visible on hover */}
@@ -122,7 +123,7 @@ export default function StatCard({
           <div
             className={`
               inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
-              ${trend.isPositive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}
+              ${trend.isPositive ? 'bg-green-50 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-400'}
             `}
           >
             {trend.value === 0 ? (
@@ -139,9 +140,9 @@ export default function StatCard({
 
       {/* Value - Primary blue for emphasis */}
       <div className="mt-3">
-        <p 
+        <p
           className="text-xl sm:text-2xl font-bold tracking-tight"
-          style={{ color: '#2563EB' }}
+          style={{ color: 'var(--color-card-value)' }}
         >
           {value}
         </p>
@@ -149,9 +150,9 @@ export default function StatCard({
 
       {/* Title & Subtitle */}
       <div className="mt-0.5">
-        <p className="text-xs sm:text-sm font-medium" style={{ color: '#64748B' }}>{title}</p>
+        <p className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>{title}</p>
         {subtitle && (
-          <p className="text-xs mt-0.5" style={{ color: '#94A3B8' }}>{subtitle}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{subtitle}</p>
         )}
       </div>
     </div>
@@ -181,29 +182,30 @@ export function StatCardCompact({
     <div
       onClick={onClick}
       className={`
-        flex items-center gap-4 bg-white rounded-xl p-4
+        flex items-center gap-4 rounded-xl p-4
         transition-all duration-200
         ${isInteractive ? 'cursor-pointer hover:-translate-y-0.5 group' : ''}
       `}
       style={{
-        border: '1px solid #E2E8F0',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+        backgroundColor: 'var(--color-card-bg)',
+        border: '1px solid var(--color-card-border)',
+        boxShadow: 'var(--shadow-card)',
       }}
       onMouseEnter={(e) => {
         if (isInteractive) {
-          e.currentTarget.style.boxShadow = '0 8px 24px rgba(37, 99, 235, 0.15)';
+          e.currentTarget.style.boxShadow = 'var(--shadow-card-hover)';
         }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-card)';
       }}
     >
       <div className={`p-2.5 rounded-lg ${colors.bg}`}>
         <div className={colors.icon}>{icon}</div>
       </div>
       <div>
-        <p className="text-lg font-bold" style={{ color: '#2563EB' }}>{value}</p>
-        <p className="text-xs" style={{ color: '#64748B' }}>{title}</p>
+        <p className="text-lg font-bold" style={{ color: 'var(--color-card-value)' }}>{value}</p>
+        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{title}</p>
       </div>
     </div>
   );
@@ -222,8 +224,8 @@ export function StatCardMini({ label, value, color = 'blue' }: StatCardMiniProps
   return (
     <div className="flex items-center gap-2">
       <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${colors.gradient}`}></div>
-      <span className="text-xs" style={{ color: '#64748B' }}>{label}:</span>
-      <span className="text-xs font-semibold" style={{ color: '#0F172A' }}>{value}</span>
+      <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{label}:</span>
+      <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>{value}</span>
     </div>
   );
 }

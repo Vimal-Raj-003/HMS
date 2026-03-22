@@ -1,428 +1,595 @@
-# HMS Module Specifications - Index
+# Hospital Management System (HMS)
 
-## Overview
+A comprehensive, full-stack Hospital Management System built with modern web technologies. This system provides role-based access for administrators, doctors, nurses, pharmacists, lab technicians, and patients.
 
-This directory contains detailed specification documents for each module of the Hospital Management System (HMS). Each specification includes user journeys, feature breakdowns, API endpoints, database requirements, and implementation priorities.
+## 🏥 Overview
 
----
+This HMS is a production-ready, multi-tenant SaaS application designed to manage all aspects of hospital operations including patient registration, appointments, consultations, pharmacy, laboratory, and billing.
 
-## Module Documents
+## ✨ Features
 
-| Module | Document | Primary Users | Key Features |
-|--------|----------|---------------|--------------|
-| [Doctor](./Doctor-Module.md) | Doctor Module Specification | Doctors | Queue management, Consultation, ICD-10 coding, Prescriptions, Lab orders |
-| [Patient](./Patient-Module.md) | Patient Module Specification | Patients (Mobile/Web) | ABHA ID, OTP auth, Online booking, Dependents management |
-| [Admin](./Admin-Module.md) | Admin Module Specification | Admin Staff, Front Desk | Walk-in registration, Billing, Doctor payouts, Reports |
-| [Nurse](./Nurse-Module.md) | Nurse Module Specification | Nurses | Vitals recording, Abnormal alerts, Queue integration |
-| [Pharmacy](./Pharmacy-Module.md) | Pharmacy Module Specification | Pharmacists | E-prescriptions, Inventory, Substitution rules |
-| [Lab](./Lab-Module.md) | Lab Module Specification | Lab Technicians | Sample collection, Results entry, Critical alerts |
-| [Architecture](./Architecture-Enhancements.md) | Architecture Enhancements | Developers | Multi-tenancy, Event-driven, Centralized billing |
+### Core Modules
 
----
+| Module | Description | Primary Users |
+|--------|-------------|---------------|
+| **Admin** | Front desk operations, staff management, billing, reports | Admin Staff, Receptionists |
+| **Doctor** | Queue management, consultations, prescriptions, lab orders | Doctors |
+| **Nurse** | Patient search, vitals recording, queue integration | Nurses |
+| **Pharmacy** | E-prescriptions, inventory management, dispensing, billing | Pharmacists |
+| **Lab** | Test orders, sample collection, results entry, reporting | Lab Technicians |
+| **Patient** | Online booking, medical records, prescriptions access | Patients |
 
-## Critical Architecture Enhancements
+### Key Features
 
-### ⚠️ Must-Read Before Development
+- 🔐 **Role-Based Access Control (RBAC)** - Granular permissions for all user types
+- 📱 **OTP-based Authentication** - Secure mobile verification for patients
+- 🔄 **Real-time Updates** - WebSocket-powered queue and notification system
+- 💳 **Payment Integration** - Razorpay integration for online payments
+- 📊 **Comprehensive Reporting** - Detailed analytics and reports
+- 🏥 **Multi-Tenancy** - SaaS-ready architecture with hospital isolation
+- 📋 **ICD-10 Coding** - Standardized diagnosis coding
+- 🔔 **Real-time Notifications** - In-app notification system with bell icon
 
-The following enhancements are **mandatory** for a production-ready system:
+## 🛠️ Tech Stack
 
-| Enhancement | Document Section | Priority | Why Required |
-|-------------|------------------|----------|--------------|
-| **ABDM Compliance (ABHA ID)** | [Patient Module](./Patient-Module.md#abdm-compliance) | P0 | Regulatory requirement in India |
-| **Multi-Tenancy** | [Architecture - Section 1](./Architecture-Enhancements.md#1-multi-tenancy-architecture-saas-model) | P0 | Required for SaaS model |
-| **Event-Driven Architecture** | [Architecture - Section 4](./Architecture-Enhancements.md#4-event-driven-architecture) | P0 | System reliability |
-| **Centralized Billing** | [Architecture - Section 2](./Architecture-Enhancements.md#2-centralized-billing-system-master-bill) | P1 | Patient experience |
-| **Queue Hold/Skip** | [Architecture - Section 3](./Architecture-Enhancements.md#3-queue-management-enhancements) | P1 | Real-world scenarios |
-| **ICD-10 Coding** | [Doctor Module](./Doctor-Module.md#43-icd-10-coding-integration) | P1 | Insurance/TPA claims |
-| **Pharmacy Substitution Rules** | [Pharmacy Module](./Pharmacy-Module.md#33-alternative-medicines--substitution-rules) | P1 | Legal compliance |
-| **Dependents Management** | [Patient Module](./Patient-Module.md#8-dependents-management-family-profiles) | P2 | Common Indian use case |
+### Backend
+| Technology | Purpose |
+|------------|---------|
+| Node.js + Express | Server runtime and framework |
+| TypeScript | Type-safe JavaScript |
+| PostgreSQL | Relational database |
+| Prisma ORM | Database toolkit and ORM |
+| Socket.IO | Real-time bidirectional communication |
+| JWT | Authentication tokens |
+| Redis | Caching and session management |
+| Multer | File upload handling |
+| Nodemailer | Email services |
+| Zod | Schema validation |
 
----
+### Frontend
+| Technology | Purpose |
+|------------|---------|
+| React 18 | UI library |
+| TypeScript | Type-safe JavaScript |
+| Vite | Build tool and dev server |
+| Tailwind CSS | Utility-first CSS framework |
+| React Router v6 | Client-side routing |
+| Zustand | State management |
+| TanStack Query | Server state management |
+| React Hook Form | Form handling |
+| Recharts | Charting library |
+| Lucide React | Icon library |
+| Socket.IO Client | Real-time communication |
+| Axios | HTTP client |
 
-## System Architecture
+## 📁 Project Structure
 
-```mermaid
-flowchart TB
-    subgraph PatientEntry[Patient Entry Points]
-        Online[Online Booking - Patient App]
-        Walkin[Walk-in - Front Desk]
-    end
-    
-    subgraph ClinicalFlow[Clinical Flow]
-        Queue[Queue Management]
-        Triage[Nurse Triage - Vitals]
-        Consult[Doctor Consultation]
-    end
-    
-    subgraph AncillaryServices[Ancillary Services]
-        Lab[Lab Tests]
-        Pharmacy[Pharmacy]
-    end
-    
-    subgraph Support[Support Systems]
-        Billing[Billing & Payments]
-        Notification[Notifications - SMS/WhatsApp]
-        Inventory[Inventory Management]
-    end
-    
-    Online --> Queue
-    Walkin --> Queue
-    Queue --> Triage
-    Triage --> Consult
-    Consult --> Lab
-    Consult --> Pharmacy
-    Lab --> Billing
-    Pharmacy --> Billing
-    Consult --> Notification
-    Lab --> Notification
-    Pharmacy --> Inventory
+```
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma          # Database schema
+│   │   └── migrations/            # Database migrations
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── database.ts        # Database configuration
+│   │   ├── middleware/
+│   │   │   ├── auth.middleware.ts # Authentication & authorization
+│   │   │   ├── error.middleware.ts # Error handling
+│   │   │   └── tenant.middleware.ts # Multi-tenancy support
+│   │   ├── routes/
+│   │   │   ├── admin.routes.ts    # Admin endpoints
+│   │   │   ├── appointment.routes.ts
+│   │   │   ├── auth.routes.ts     # Authentication endpoints
+│   │   │   ├── billing.routes.ts
+│   │   │   ├── doctor.routes.ts
+│   │   │   ├── lab.routes.ts
+│   │   │   ├── nurse.routes.ts
+│   │   │   ├── notification.routes.ts
+│   │   │   ├── patient.routes.ts
+│   │   │   ├── patientPortal.routes.ts
+│   │   │   ├── pharmacy.routes.ts
+│   │   │   └── queue.routes.ts
+│   │   ├── services/
+│   │   │   ├── auth.service.ts
+│   │   │   └── patient.service.ts
+│   │   ├── index.ts               # Application entry point
+│   │   ├── socket.ts              # Socket.IO handlers
+│   │   └── seed.ts                # Database seeding
+│   ├── .env.example
+│   ├── Dockerfile
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── patient/
+│   │   │   │   └── PrescriptionModal.tsx
+│   │   │   ├── ui/
+│   │   │   │   ├── CollapsibleCard.tsx
+│   │   │   │   ├── DataTable.tsx
+│   │   │   │   ├── DocumentViewer.tsx
+│   │   │   │   ├── MiniChart.tsx
+│   │   │   │   ├── Skeleton.tsx
+│   │   │   │   ├── StatCard.tsx
+│   │   │   │   └── index.ts
+│   │   │   └── NotificationBell.tsx
+│   │   ├── contexts/
+│   │   │   └── ThemeContext.tsx
+│   │   ├── layouts/
+│   │   │   ├── AuthLayout.tsx
+│   │   │   └── DashboardLayout.tsx
+│   │   ├── lib/
+│   │   │   ├── api.ts             # API client
+│   │   │   ├── socket.ts          # Socket client
+│   │   │   └── utils.ts
+│   │   ├── pages/
+│   │   │   ├── admin/
+│   │   │   │   ├── Appointments.tsx
+│   │   │   │   ├── Billing.tsx
+│   │   │   │   ├── Dashboard.tsx
+│   │   │   │   ├── PatientRegistration.tsx
+│   │   │   │   ├── QueueManagement.tsx
+│   │   │   │   ├── Reports.tsx
+│   │   │   │   ├── Settings.tsx
+│   │   │   │   └── StaffManagement.tsx
+│   │   │   ├── auth/
+│   │   │   │   ├── Login.tsx
+│   │   │   │   └── PatientLogin.tsx
+│   │   │   ├── doctor/
+│   │   │   │   ├── Consultation.tsx
+│   │   │   │   ├── Dashboard.tsx
+│   │   │   │   ├── PatientQueue.tsx
+│   │   │   │   ├── Prescriptions.tsx
+│   │   │   │   └── Schedule.tsx
+│   │   │   ├── lab/
+│   │   │   │   ├── Dashboard.tsx
+│   │   │   │   ├── EnterResults.tsx
+│   │   │   │   ├── LabOrders.tsx
+│   │   │   │   ├── SampleCollection.tsx
+│   │   │   │   └── TestCatalog.tsx
+│   │   │   ├── landing/
+│   │   │   │   ├── LandingPage.tsx
+│   │   │   │   └── components/
+│   │   │   │       ├── ChatBot.tsx
+│   │   │   │       ├── DoctorsSection.tsx
+│   │   │   │       ├── ECGWaveBackground.tsx
+│   │   │   │       ├── FAQSection.tsx
+│   │   │   │       ├── FooterSection.tsx
+│   │   │   │       ├── HeroSection.tsx
+│   │   │   │       ├── MetricsSection.tsx
+│   │   │   │       ├── SpecialtiesSection.tsx
+│   │   │   │       ├── TestimonialsSection.tsx
+│   │   │   │       └── TrustSection.tsx
+│   │   │   ├── nurse/
+│   │   │   │   ├── Dashboard.tsx
+│   │   │   │   ├── PatientSearch.tsx
+│   │   │   │   └── RecordVitals.tsx
+│   │   │   ├── patient/
+│   │   │   │   ├── BookAppointment.tsx
+│   │   │   │   ├── Dashboard.tsx
+│   │   │   │   ├── LabReports.tsx
+│   │   │   │   ├── MedicalRecords.tsx
+│   │   │   │   ├── MyPrescriptions.tsx
+│   │   │   │   ├── Profile.tsx
+│   │   │   │   └── ProfileSetup.tsx
+│   │   │   └── pharmacy/
+│   │   │       ├── Bills.tsx
+│   │   │       ├── Dashboard.tsx
+│   │   │       ├── DispenseMedicine.tsx
+│   │   │       ├── Expenses.tsx
+│   │   │       ├── Inventory.tsx
+│   │   │       ├── ManualBilling.tsx
+│   │   │       ├── PendingPrescriptions.tsx
+│   │   │       └── Reports.tsx
+│   │   ├── store/
+│   │   │   └── auth.store.ts
+│   │   ├── App.tsx
+│   │   ├── main.tsx
+│   │   └── index.css
+│   ├── .env.example
+│   ├── vercel.json
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   └── package.json
+├── docker-compose.yml
+├── render.yaml
+├── SETUP.md
+├── HOSTINGER-DEPLOYMENT.md
+└── Module Specifications
+    ├── Admin-Module.md
+    ├── Architecture-Enhancements.md
+    ├── Doctor-Module.md
+    ├── Lab-Module.md
+    ├── Nurse-Module.md
+    ├── Patient-Module.md
+    └── Pharmacy-Module.md
 ```
 
----
+## 🚀 Getting Started
 
-## Complete Patient Lifecycle
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 14+
+- Redis (optional, for caching)
 
-```mermaid
-sequenceDiagram
-    participant P as Patient
-    participant A as Admin/Front Desk
-    participant N as Nurse
-    participant D as Doctor
-    participant L as Lab
-    participant Ph as Pharmacy
-    participant B as Billing
-    participant S as System/Notifications
-    
-    Note over P,S: Step 1 - Registration & Booking
-    alt Online Booking
-        P->>S: Login with Mobile + OTP
-        P->>S: Fill Profile
-        P->>S: Browse Doctors & Slots
-        P->>S: Pay via UPI/Card
-        S->>P: SMS/WhatsApp Confirmation
-    else Walk-in
-        P->>A: Arrive at Hospital
-        A->>S: Register/Search Patient
-        A->>S: Book Slot with Doctor
-        A->>B: Collect Fee - Cash/UPI
-        B->>P: Digital Receipt
-    end
-    
-    Note over P,S: Step 2 - Queue Management
-    S->>S: Assign Token Number
-    S->>P: SMS - Token Number
-    
-    Note over P,S: Step 3 - Triage & Vitals
-    N->>S: Search Patient by Token/Mobile
-    N->>S: Record Vitals - BP, Sugar, SpO2, etc.
-    S->>S: Sync to EMR
-    S->>D: Alert - Vitals Ready
-    
-    Note over P,S: Step 4 - Doctor Consultation
-    D->>S: View Queue & Patient Vitals
-    P->>D: Enter Consultation
-    D->>S: Enter Clinical Notes
-    D->>S: Write Prescription
-    D->>S: Order Lab Tests if needed
-    S->>P: Push E-Prescription
-    S->>Ph: Push to Pharmacy
-    S->>L: Push Lab Order
-    
-    Note over P,S: Step 5 - Lab Tests if ordered
-    P->>L: Visit Lab
-    L->>S: Collect Sample
-    L->>S: Process Tests
-    L->>S: Upload Results
-    S->>P: SMS - Reports Ready
-    S->>D: Alert - Results Available
-    
-    Note over P,S: Step 6 - Pharmacy
-    P->>Ph: Present Mobile Number
-    Ph->>S: Pull E-Prescription
-    Ph->>S: Check Inventory
-    Ph->>S: Dispense Medicines
-    Ph->>B: Generate Bill
-    P->>B: Pay Pharmacy Bill
-    S->>S: Update Inventory
-    
-    Note over P,S: Step 7 - Discharge & Records
-    S->>P: Digital Record in App
-    P->>P: View Invoice, Vitals, Notes
-    P->>P: View Lab Reports, Pharmacy Receipt
+### Backend Setup
+
+1. **Navigate to backend directory:**
+   ```bash
+   cd backend
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Update `.env` with your configuration:
+   ```env
+   DATABASE_URL="postgresql://user:password@localhost:5432/hms?schema=public"
+   JWT_SECRET="your-super-secret-jwt-key"
+   JWT_REFRESH_SECRET="your-refresh-token-secret"
+   PORT=5000
+   NODE_ENV=development
+   ```
+
+4. **Initialize database:**
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+
+5. **Seed database (optional):**
+   ```bash
+   npm run db:seed
+   ```
+
+6. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+The API will be available at `http://localhost:5000`
+
+### Frontend Setup
+
+1. **Navigate to frontend directory:**
+   ```bash
+   cd frontend
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Update `.env`:
+   ```env
+   VITE_API_URL=http://localhost:5000
+   ```
+
+4. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+The application will be available at `http://localhost:5173`
+
+## 📚 API Documentation
+
+### Base URL
+```
+http://localhost:5000/api
 ```
 
----
+### Authentication Endpoints
 
-## Key Features by Module
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new staff user (Admin only) |
+| POST | `/api/auth/login` | Staff login |
+| POST | `/api/auth/refresh` | Refresh access token |
+| POST | `/api/auth/send-otp` | Send OTP to patient mobile |
+| POST | `/api/auth/verify-otp` | Verify patient OTP |
 
-### Doctor Module
-- Dashboard with AI-powered summary
-- Real-time queue management
-- Patient consultation workflow
-- E-prescription generation
-- Lab test ordering
-- Results review with alerts
-- Payout tracking
+### Module Endpoints
 
-### Patient Module
-- OTP-based authentication
-- Online doctor browsing & booking
-- UPI/Card payment integration
-- Real-time queue tracking
-- Digital medical records
-- Prescription & lab report access
-- WhatsApp/SMS notifications
+#### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/dashboard-stats` | Dashboard statistics |
+| GET | `/api/admin/users` | List all users |
+| POST | `/api/admin/users` | Create user |
+| PUT | `/api/admin/users/:id` | Update user |
+| GET | `/api/admin/bills` | List bills |
+| GET | `/api/admin/reports` | Generate reports |
 
-### Admin Module
-- Front desk operations
-- Walk-in patient registration
-- User/staff management
-- Billing & payment processing
-- Doctor payout management
-- Comprehensive reporting
-- System configuration
+#### Doctor
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/doctors/dashboard-stats` | Doctor dashboard stats |
+| GET | `/api/doctors/queue` | Patient queue |
+| GET | `/api/doctors/consultations` | Consultation history |
+| POST | `/api/doctors/consultations` | Create consultation |
+| POST | `/api/doctors/prescriptions` | Create prescription |
+| POST | `/api/doctors/lab-orders` | Order lab tests |
 
-### Nurse Module
-- Patient search (mobile/token)
-- Vitals recording form
-- Abnormal value alerts
-- Queue integration
-- Medical history access
-- Real-time doctor notifications
+#### Nurse
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/nurse/dashboard-stats` | Nurse dashboard stats |
+| GET | `/api/nurse/patients/search` | Search patients |
+| POST | `/api/nurse/vitals` | Record patient vitals |
+| GET | `/api/nurse/vitals/:patientId` | Get patient vitals history |
 
-### Pharmacy Module
-- E-prescription processing
-- Inventory management
-- Low stock & expiry alerts
-- Alternative medicine suggestions
-- Pharmacy billing
-- Stock reports
+#### Pharmacy
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/pharmacy/dashboard-stats` | Pharmacy dashboard |
+| GET | `/api/pharmacy/prescriptions` | List pending prescriptions |
+| POST | `/api/pharmacy/dispense` | Dispense medicines |
+| GET | `/api/pharmacy/inventory` | List inventory |
+| PUT | `/api/pharmacy/inventory/:id` | Update inventory |
+| GET | `/api/pharmacy/bills` | Pharmacy bills |
+| POST | `/api/pharmacy/bills` | Create manual bill |
 
-### Lab Module
-- Test order management
-- Sample collection workflow
-- Result entry with validation
-- Critical value alerts
-- PDF report generation
-- Test catalog management
+#### Lab
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/lab/dashboard-stats` | Lab dashboard stats |
+| GET | `/api/lab/orders` | List lab orders |
+| PUT | `/api/lab/orders/:id/sample` | Collect sample |
+| PUT | `/api/lab/orders/:id/results` | Enter results |
+| GET | `/api/lab/catalog` | Test catalog |
+| POST | `/api/lab/catalog` | Add test to catalog |
 
----
+#### Patient Portal
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/patient/doctors` | List available doctors |
+| GET | `/api/patient/doctors/:id/slots` | Get doctor slots |
+| POST | `/api/patient/appointments` | Book appointment |
+| GET | `/api/patient/records` | Medical records |
+| GET | `/api/patient/prescriptions` | My prescriptions |
+| GET | `/api/patient/lab-reports` | Lab reports |
 
-## Integration Points
+### Queue Management
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/queue` | Get queue status |
+| POST | `/api/queue` | Add to queue |
+| PUT | `/api/queue/:id/status` | Update queue status |
+| POST | `/api/queue/:id/hold` | Put on hold |
+| POST | `/api/queue/:id/skip` | Skip patient |
 
-```mermaid
-flowchart LR
-    subgraph Core[Core Modules]
-        Doctor[Doctor]
-        Patient[Patient]
-        Admin[Admin]
-    end
-    
-    subgraph Clinical[Clinical Support]
-        Nurse[Nurse]
-        Lab[Lab]
-        Pharmacy[Pharmacy]
-    end
-    
-    subgraph External[External Services]
-        SMS[SMS Gateway]
-        WhatsApp[WhatsApp API]
-        Payment[Payment Gateway - Razorpay]
-        Storage[File Storage - S3]
-    end
-    
-    Doctor <--> Patient
-    Doctor <--> Nurse
-    Doctor <--> Lab
-    Doctor <--> Pharmacy
-    
-    Admin <--> Doctor
-    Admin <--> Patient
-    Admin <--> Pharmacy
-    Admin <--> Lab
-    
-    Patient <--> SMS
-    Patient <--> WhatsApp
-    Patient <--> Payment
-    
-    Lab <--> Storage
-    Pharmacy <--> Storage
-```
+## 🔐 User Roles & Permissions
 
----
+| Role | Description | Access |
+|------|-------------|--------|
+| `ADMIN` | System administrator | Full system access |
+| `DOCTOR` | Medical professional | Clinical operations, consultations, prescriptions |
+| `NURSE` | Nursing staff | Vitals recording, patient search |
+| `PHARMACIST` | Pharmacy staff | Inventory, dispensing, pharmacy billing |
+| `LAB_TECH` | Laboratory technician | Lab orders, sample collection, results |
+| `RECEPTIONIST` | Front desk staff | Patient registration, appointments |
+| `PATIENT` | Registered patient | Patient portal, booking, records |
 
-## Database Schema Overview
+## 🗄️ Database Schema
 
 ### Core Tables
+
 | Table | Description |
 |-------|-------------|
+| `hospitals` | Multi-tenant hospital/tenant data |
 | `users` | Staff accounts (doctors, nurses, admins, etc.) |
-| `patients` | Patient demographics |
+| `patients` | Patient demographics and profiles |
 | `appointments` | Booked appointments |
 | `queue_entries` | Daily token queue |
 
 ### Clinical Tables
+
 | Table | Description |
 |-------|-------------|
 | `vitals` | Patient vital signs |
 | `consultations` | Doctor consultation records |
 | `prescriptions` | Medicine prescriptions |
-| `prescription_items` | Individual medicines |
+| `prescription_items` | Individual medicines in prescriptions |
 | `medical_history` | Pre-existing conditions |
 
 ### Lab Tables
+
 | Table | Description |
 |-------|-------------|
 | `lab_tests` | Test master catalog |
 | `lab_orders` | Test orders |
 | `lab_order_items` | Individual test results |
+| `lab_samples` | Sample collection tracking |
+| `lab_billings` | Lab billing records |
 
 ### Pharmacy Tables
+
 | Table | Description |
 |-------|-------------|
-| `medicines` | Medicine master |
-| `inventory` | Stock levels |
-| `pharmacy_dispense` | Dispense records |
-| `dispense_items` | Items dispensed |
+| `medicines` | Medicine master data |
+| `inventory` | Stock levels and tracking |
+| `pharmacy_dispenses` | Dispense records |
+| `pharmacy_bills` | Pharmacy invoices |
+| `pharmacy_expenses` | Expense tracking |
 
 ### Billing Tables
+
 | Table | Description |
 |-------|-------------|
 | `bills` | Invoices |
 | `bill_items` | Invoice line items |
 | `payments` | Payment records |
+| `master_bills` | Consolidated billing |
 
 ### System Tables
+
 | Table | Description |
 |-------|-------------|
 | `notifications` | User notifications |
 | `audit_logs` | Activity tracking |
-| `refresh_tokens` | Auth tokens |
+| `refresh_tokens` | JWT refresh tokens |
+| `icd10_codes` | ICD-10 diagnosis codes |
 
----
+## 🔄 Real-time Events (Socket.IO)
 
-## API Structure
+### Events Emitted by Server
 
-### Base URL
+| Event | Description |
+|-------|-------------|
+| `queue:update` | Queue status changed |
+| `notification:new` | New notification for user |
+| `prescription:new` | New prescription created |
+| `lab:result_ready` | Lab results available |
+| `lab:order_new` | New lab order created |
+
+### Socket Connection
+
+```typescript
+// Frontend
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:5000', {
+  auth: { token: accessToken }
+});
+
+socket.on('queue:update', (data) => {
+  console.log('Queue updated:', data);
+});
 ```
-/api/{module}/{resource}
+
+## 🏗️ Architecture
+
+### Multi-Tenancy
+
+The system supports multi-tenancy through:
+- Hospital-based data isolation
+- Subdomain routing (e.g., `cityhospital.hms.com`)
+- Tenant middleware for automatic context injection
+
+### Event-Driven Design
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Doctor    │────▶│   Socket    │────▶│  Pharmacy   │
+│  Consultation│    │    Server   │     │  Dashboard  │
+└─────────────┘     └─────────────┘     └─────────────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │  Patient    │
+                    │  Notification│
+                    └─────────────┘
 ```
 
-### Common Endpoints Pattern
+## 📦 Deployment
+
+### Docker Deployment
+
+```bash
+docker-compose up -d
 ```
-GET    /api/{module}/{resource}       # List
-POST   /api/{module}/{resource}       # Create
-GET    /api/{module}/{resource}/:id   # Get by ID
-PUT    /api/{module}/{resource}/:id   # Update
-DELETE /api/{module}/{resource}/:id   # Delete
+
+### Manual Deployment
+
+**Backend:**
+```bash
+cd backend
+npm run build
+npm start
 ```
 
-### Authentication
-- JWT-based authentication
-- Role-based access control
-- Token refresh mechanism
+**Frontend:**
+```bash
+cd frontend
+npm run build
+# Serve the dist folder
+```
+
+### Cloud Deployment
+
+- **Backend**: Configured for Render (see `render.yaml`)
+- **Frontend**: Configured for Vercel (see `frontend/vercel.json`)
+
+For detailed deployment instructions, see:
+- [SETUP.md](./SETUP.md) - Complete setup guide
+- [HOSTINGER-DEPLOYMENT.md](./HOSTINGER-DEPLOYMENT.md) - Hostinger deployment
+
+## 🧪 Development
+
+### Available Scripts
+
+**Backend:**
+```bash
+npm run dev        # Start development server with hot reload
+npm run build      # Build for production
+npm start          # Start production server
+npm run db:generate # Generate Prisma client
+npm run db:push    # Push schema changes
+npm run db:migrate # Run migrations
+npm run db:studio  # Open Prisma Studio
+npm run db:seed    # Seed database
+```
+
+**Frontend:**
+```bash
+npm run dev        # Start development server
+npm run build      # Build for production
+npm run preview    # Preview production build
+npm run lint       # Run ESLint
+```
+
+## 📖 Module Specifications
+
+Detailed specifications for each module are available:
+
+| Module | Document |
+|--------|----------|
+| Doctor | [Doctor-Module.md](./Doctor-Module.md) |
+| Patient | [Patient-Module.md](./Patient-Module.md) |
+| Admin | [Admin-Module.md](./Admin-Module.md) |
+| Nurse | [Nurse-Module.md](./Nurse-Module.md) |
+| Pharmacy | [Pharmacy-Module.md](./Pharmacy-Module.md) |
+| Lab | [Lab-Module.md](./Lab-Module.md) |
+| Architecture | [Architecture-Enhancements.md](./Architecture-Enhancements.md) |
+
+## 🔒 Security
+
+- **Authentication**: JWT-based with refresh token rotation
+- **Authorization**: Role-based access control (RBAC)
+- **Data Validation**: Zod schemas on backend, React Hook Form + Zod on frontend
+- **Password Hashing**: bcryptjs
+- **CORS**: Configured for allowed origins only
+- **File Uploads**: Validated file types and size limits
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For support, please open an issue in the repository.
 
 ---
 
-## Implementation Phases
-
-### Phase 1 - Core (P0 Features)
-- [ ] Authentication system with OTP
-- [ ] Patient registration
-- [ ] Doctor dashboard & queue
-- [ ] Consultation workflow
-- [ ] Prescription writing
-- [ ] Front desk operations
-
-### Phase 2 - Clinical Support (P1 Features)
-- [ ] Nurse vitals recording
-- [ ] Lab test ordering
-- [ ] Lab result entry
-- [ ] Pharmacy dispensing
-- [ ] Inventory management
-- [ ] Payment integration
-
-### Phase 3 - Enhanced Features (P2 Features)
-- [ ] Real-time notifications
-- [ ] WhatsApp integration
-- [ ] PDF report generation
-- [ ] Analytics & reporting
-- [ ] Doctor payouts
-
-### Phase 4 - Advanced (P3 Features)
-- [ ] AI-powered suggestions
-- [ ] Drug interaction alerts
-- [ ] Equipment integration
-- [ ] Advanced analytics
-
----
-
-## Technology Stack Reference
-
-### Frontend
-- React 18+ with TypeScript
-- Redux Toolkit for state
-- Material-UI / Tailwind CSS
-- React Query for server state
-- Framer Motion for animations
-
-### Backend
-- Node.js with Express
-- PostgreSQL database
-- Prisma ORM
-- JWT authentication
-- Redis for caching
-- Bull for job queues
-
-### External Services
-- Razorpay for payments
-- Twilio/MSG91 for SMS
-- WhatsApp Business API
-- AWS S3 for file storage
-
----
-
-## Security Considerations
-
-1. **Authentication**
-   - OTP verification for patients
-   - JWT tokens with refresh mechanism
-   - Role-based access control
-
-2. **Data Protection**
-   - Encryption at rest
-   - HTTPS for all communications
-   - Audit logging for sensitive operations
-
-3. **Compliance**
-   - HIPAA guidelines for patient data
-   - Data retention policies
-   - Consent management
-
----
-
-## Getting Started
-
-1. Read the [Doctor Module](./Doctor-Module.md) specification first to understand the core clinical workflow
-2. Review [Patient Module](./Patient-Module.md) for the patient-facing features
-3. Check [Admin Module](./Admin-Module.md) for operational management
-4. Explore [Nurse](./Nurse-Module.md), [Pharmacy](./Pharmacy-Module.md), and [Lab](./Lab-Module.md) for specialized workflows
-
----
-
-## Contributing
-
-When updating specifications:
-1. Maintain consistent formatting across all documents
-2. Update API endpoints in the respective module
-3. Add new database fields to schema section
-4. Update integration points if adding new modules
-5. Run Mermaid diagram validation
-
----
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | 2026-03-01 | Initial module specifications |
+Built with ❤️ for better healthcare management.

@@ -119,7 +119,7 @@ router.get('/dashboard-stats', authenticate, authorize('NURSE'), async (req: Req
         status: {
           notIn: ['CANCELLED', 'COMPLETED'],
         },
-        vitals: null, // No vitals recorded yet
+        vitals: { is: null }, // No vitals recorded yet
       },
       include: {
         patient: {
@@ -247,6 +247,7 @@ router.get(
             id: apt.id,
             appointmentDate: apt.appointmentDate,
             appointmentTime: apt.startTime,
+            status: apt.status,
             doctor: apt.doctor,
           },
         }));
@@ -309,6 +310,7 @@ router.get(
                 id: appointment.id,
                 appointmentDate: appointment.appointmentDate,
                 appointmentTime: appointment.startTime,
+                status: appointment.status,
                 doctor: appointment.doctor,
               } : null,
             };
@@ -558,15 +560,15 @@ router.post(
   authorize('NURSE'),
   [
     body('patientId').notEmpty().withMessage('Patient ID is required'),
-    body('bloodPressureSystolic').optional().isInt({ min: 50, max: 250 }),
-    body('bloodPressureDiastolic').optional().isInt({ min: 30, max: 150 }),
-    body('heartRate').optional().isInt({ min: 30, max: 200 }),
-    body('temperature').optional().isFloat({ min: 90, max: 110 }),
-    body('weight').optional().isFloat({ min: 1, max: 300 }),
-    body('height').optional().isFloat({ min: 50, max: 250 }),
-    body('oxygenSaturation').optional().isInt({ min: 50, max: 100 }),
-    body('respiratoryRate').optional().isInt({ min: 8, max: 40 }),
-    body('notes').optional().isString(),
+    body('bloodPressureSystolic').optional({ nullable: true }).isInt({ min: 50, max: 250 }),
+    body('bloodPressureDiastolic').optional({ nullable: true }).isInt({ min: 30, max: 150 }),
+    body('heartRate').optional({ nullable: true }).isInt({ min: 30, max: 200 }),
+    body('temperature').optional({ nullable: true }).isFloat({ min: 90, max: 115 }), // Fahrenheit range (extended for extreme cases)
+    body('weight').optional({ nullable: true }).isFloat({ min: 1, max: 300 }),
+    body('height').optional({ nullable: true }).isFloat({ min: 50, max: 250 }),
+    body('oxygenSaturation').optional({ nullable: true }).isInt({ min: 50, max: 100 }),
+    body('respiratoryRate').optional({ nullable: true }).isInt({ min: 8, max: 40 }),
+    body('notes').optional({ nullable: true }).isString(),
   ],
   validate,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -590,32 +592,60 @@ router.post(
         notes,
       } = req.body;
 
-      // Get patient and appointment info for the vital record
-      const patient = await prisma.patient.findUnique({
-        where: { id: patientId },
+      // Debug logging
+      console.log('[Vitals] Recording vitals:', {
+        patientId,
+        appointmentId,
+        hospitalId,
+        nurseId,
+      });
+
+      // Validate patient exists and belongs to this hospital
+      const patient = await prisma.patient.findFirst({
+        where: {
+          id: patientId,
+          hospitalId,
+        },
         select: { firstName: true, lastName: true },
       });
+
+      if (!patient) {
+        return res.status(404).json({
+          success: false,
+          message: 'Patient not found or does not belong to this hospital',
+        });
+      }
 
       let doctorId = null;
       let doctorName = null;
 
+      // Validate appointment if provided
       if (appointmentId) {
-        const appointment = await prisma.appointment.findUnique({
-          where: { id: appointmentId },
+        const appointment = await prisma.appointment.findFirst({
+          where: {
+            id: appointmentId,
+            hospitalId,
+          },
           include: {
             doctor: {
               select: { id: true, firstName: true, lastName: true },
             },
           },
         });
-        if (appointment) {
-          doctorId = appointment.doctor.id;
-          doctorName = `Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`;
+        
+        if (!appointment) {
+          return res.status(404).json({
+            success: false,
+            message: 'Appointment not found or does not belong to this hospital',
+          });
         }
+        
+        doctorId = appointment.doctor.id;
+        doctorName = `Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`;
       }
 
       // Calculate BMI if height and weight are provided
-      let bmi = null;
+      let bmi: number | null = null;
       if (weight && height) {
         const heightInMeters = height / 100;
         bmi = parseFloat((weight / (heightInMeters * heightInMeters)).toFixed(1));
@@ -640,38 +670,82 @@ router.post(
         alerts.push('High fasting blood sugar');
       }
 
-      // Create vitals record
-      const vitals = await prisma.vitals.create({
-        data: {
-          id: undefined,
-          hospitalId,
-          patientId,
-          appointmentId: appointmentId || null,
-          recordedBy: nurseId,
-          bloodPressureSystolic: bloodPressureSystolic || null,
-          bloodPressureDiastolic: bloodPressureDiastolic || null,
-          heartRate: heartRate || null,
-          temperature: temperature || null,
-          weight: weight || null,
-          height: height || null,
-          bmi,
-          bloodSugarFasting: bloodSugarFasting || null,
-          bloodSugarRandom: bloodSugarRandom || null,
-          bloodSugarPostMeal: bloodSugarPostMeal || null,
-          oxygenSaturation: oxygenSaturation || null,
-          respiratoryRate: respiratoryRate || null,
-          notes: notes || null,
-        },
-        include: {
-          patient: {
-            select: {
-              firstName: true,
-              lastName: true,
-              patientNumber: true,
+      // Check if vitals already exist for this appointment
+      let vitals;
+      if (appointmentId) {
+        const existingVitals = await prisma.vitals.findUnique({
+          where: { appointmentId },
+        });
+
+        if (existingVitals) {
+          // Update existing vitals
+          vitals = await prisma.vitals.update({
+            where: { appointmentId },
+            data: {
+              bloodPressureSystolic: bloodPressureSystolic ?? null,
+              bloodPressureDiastolic: bloodPressureDiastolic ?? null,
+              heartRate: heartRate ?? null,
+              temperature: temperature ?? null,
+              weight: weight ?? null,
+              height: height ?? null,
+              bmi,
+              bloodSugarFasting: bloodSugarFasting ?? null,
+              bloodSugarRandom: bloodSugarRandom ?? null,
+              bloodSugarPostMeal: bloodSugarPostMeal ?? null,
+              oxygenSaturation: oxygenSaturation ?? null,
+              respiratoryRate: respiratoryRate ?? null,
+              notes: notes ?? null,
+              recordedBy: nurseId,
+              recordedAt: new Date(),
+            },
+            include: {
+              patient: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  patientNumber: true,
+                },
+              },
+            },
+          });
+          console.log('[Vitals] Updated existing vitals for appointment:', appointmentId);
+        }
+      }
+
+      // Create new vitals record if not updated
+      if (!vitals) {
+        vitals = await prisma.vitals.create({
+          data: {
+            hospitalId,
+            patientId,
+            appointmentId: appointmentId || null,
+            recordedBy: nurseId,
+            bloodPressureSystolic: bloodPressureSystolic ?? null,
+            bloodPressureDiastolic: bloodPressureDiastolic ?? null,
+            heartRate: heartRate ?? null,
+            temperature: temperature ?? null,
+            weight: weight ?? null,
+            height: height ?? null,
+            bmi,
+            bloodSugarFasting: bloodSugarFasting ?? null,
+            bloodSugarRandom: bloodSugarRandom ?? null,
+            bloodSugarPostMeal: bloodSugarPostMeal ?? null,
+            oxygenSaturation: oxygenSaturation ?? null,
+            respiratoryRate: respiratoryRate ?? null,
+            notes: notes ?? null,
+          },
+          include: {
+            patient: {
+              select: {
+                firstName: true,
+                lastName: true,
+                patientNumber: true,
+              },
             },
           },
-        },
-      });
+        });
+        console.log('[Vitals] Created new vitals record:', vitals.id);
+      }
 
       // Update queue status if appointment exists
       if (appointmentId) {
@@ -683,14 +757,9 @@ router.post(
           },
         });
 
-        // Get doctor ID for notification
-        const appointment = await prisma.appointment.findUnique({
-          where: { id: appointmentId },
-          select: { doctorId: true },
-        });
-
-        if (appointment && io) {
-          emitVitalsReady(io, appointment.doctorId, { patientId });
+        // Emit socket notification
+        if (doctorId && io) {
+          emitVitalsReady(io, doctorId, { patientId });
         }
       }
 
@@ -705,8 +774,12 @@ router.post(
           alerts: alerts.length > 0 ? alerts : undefined,
         },
       });
-    } catch (error) {
-      next(error);
+    } catch (error: any) {
+      console.error('[Vitals] Error recording vitals:', error);
+      res.status(500).json({
+        success: false,
+        message: error?.message || 'Failed to record vitals',
+      });
     }
   }
 );
@@ -772,6 +845,16 @@ router.put(
         updateData.vitalsStartedAt = new Date();
       } else if (status === 'VITALS_DONE') {
         updateData.vitalsDoneAt = new Date();
+      }
+
+      const hospitalId = req.user!.hospitalId;
+
+      // Verify queue entry belongs to this hospital
+      const existing = await prisma.queueEntry.findFirst({
+        where: { id, hospitalId },
+      });
+      if (!existing) {
+        throw ApiError.notFound('Queue entry not found', 'QUEUE_NOT_FOUND');
       }
 
       const queueEntry = await prisma.queueEntry.update({

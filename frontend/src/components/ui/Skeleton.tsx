@@ -6,7 +6,7 @@ interface SkeletonProps {
 export function Skeleton({ className = '' }: SkeletonProps) {
   return (
     <div
-      className={`bg-gradient-to-r from-secondary-200 via-secondary-100 to-secondary-200 bg-[length:200%_100%] animate-shimmer rounded ${className}`}
+      className={`bg-gradient-to-r from-secondary-200 via-secondary-100 to-secondary-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 bg-[length:200%_100%] animate-shimmer rounded ${className}`}
     />
   );
 }
@@ -65,7 +65,7 @@ interface SkeletonCardProps {
 
 export function SkeletonCard({ className = '', showAvatar = false, lines = 3 }: SkeletonCardProps) {
   return (
-    <div className={`bg-white rounded-xl border border-secondary-200 p-5 ${className}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-xl border border-secondary-200 dark:border-gray-700 p-5 ${className}`}>
       {showAvatar && (
         <div className="flex items-center gap-3 mb-4">
           <SkeletonAvatar />
@@ -83,7 +83,7 @@ export function SkeletonCard({ className = '', showAvatar = false, lines = 3 }: 
 // Stat Card Skeleton
 export function SkeletonStatCard({ className = '' }: SkeletonProps) {
   return (
-    <div className={`bg-white rounded-xl border border-secondary-100 p-5 ${className}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-xl border border-secondary-100 dark:border-gray-700 p-5 ${className}`}>
       <div className="flex items-start justify-between">
         <Skeleton className="w-12 h-12 rounded-xl" />
         <Skeleton className="w-16 h-5 rounded-full" />
@@ -123,10 +123,10 @@ interface SkeletonTableProps {
 
 export function SkeletonTable({ rows = 5, columns = 4, className = '' }: SkeletonTableProps) {
   return (
-    <div className={`bg-white rounded-xl border border-secondary-200 overflow-hidden ${className}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-xl border border-secondary-200 dark:border-gray-700 overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
         <table className="min-w-full">
-          <thead className="bg-secondary-50/80">
+          <thead className="bg-secondary-50/80 dark:bg-gray-900/50">
             <tr>
               {Array.from({ length: columns }).map((_, index) => (
                 <th key={index} className="px-5 py-3.5">
@@ -135,7 +135,7 @@ export function SkeletonTable({ rows = 5, columns = 4, className = '' }: Skeleto
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-secondary-100">
+          <tbody className="divide-y divide-secondary-100 dark:divide-gray-700">
             {Array.from({ length: rows }).map((_, rowIndex) => (
               <SkeletonTableRow key={rowIndex} columns={columns} />
             ))}

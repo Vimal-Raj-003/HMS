@@ -59,10 +59,13 @@ function generateTimeSlots(): string[] {
 
 // Helper function to filter past time slots for today
 function filterPastSlots(slots: string[], dateStr: string): { slot: string; isAvailable: boolean }[] {
+  // Use IST (UTC+5:30) for consistent timezone handling across all routes
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
-  const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-  
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const nowIST = new Date(now.getTime() + istOffset);
+  const todayStr = nowIST.toISOString().split('T')[0];
+  const currentTimeStr = nowIST.toTimeString().slice(0, 5);
+
   return slots.map(slot => {
     let isAvailable = true;
     if (dateStr === todayStr) {
@@ -228,10 +231,12 @@ router.post(
         throw ApiError.badRequest('Invalid time slot. Please select a valid 15-minute interval within working hours (09:00-13:00 or 14:00-20:00)', 'INVALID_TIME_SLOT');
       }
 
-      // For today, validate time is not in the past
+      // For today, validate time is not in the past (use IST for consistency with doctor routes)
       const now = new Date();
-      const todayStr = now.toISOString().split('T')[0];
-      const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const nowIST = new Date(now.getTime() + istOffset);
+      const todayStr = nowIST.toISOString().split('T')[0];
+      const currentTimeStr = nowIST.toTimeString().slice(0, 5);
       if (date === todayStr && time <= currentTimeStr) {
         throw ApiError.badRequest('Cannot book appointments in the past. Please select a future time slot', 'PAST_TIME');
       }
@@ -307,6 +312,31 @@ router.post(
       });
 
       console.log('[Patient Portal] Appointment created successfully:', appointment.id);
+
+      // Create queue entry (matching appointment.routes.ts pattern)
+      const lastQueue = await prisma.queueEntry.findFirst({
+        where: {
+          hospitalId,
+          createdAt: { gte: new Date(new Date(date).setHours(0, 0, 0, 0)) },
+        },
+        orderBy: { queueNumber: 'desc' },
+      });
+      const tokenNumber = (lastQueue?.queueNumber || 0) + 1;
+
+      await prisma.queueEntry.create({
+        data: {
+          hospitalId,
+          appointmentId: appointment.id,
+          patientId,
+          doctorId,
+          queueNumber: tokenNumber,
+          status: 'WAITING',
+          originalPosition: tokenNumber,
+          currentPosition: tokenNumber,
+        },
+      });
+
+      console.log('[Patient Portal] Queue entry created with token:', tokenNumber);
 
       // Create notification for the doctor
       const patientName = `${appointment.patient.firstName} ${appointment.patient.lastName}`;
@@ -478,7 +508,13 @@ router.get(
     try {
       const patientId = req.user!.id;
       const hospitalId = req.user!.hospitalId;
+
+      // Use IST (UTC+5:30) for consistent timezone handling
       const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const nowIST = new Date(now.getTime() + istOffset);
+      const todayMidnight = new Date(nowIST.toISOString().split('T')[0] + 'T00:00:00.000Z');
+      const currentTimeStr = nowIST.toTimeString().slice(0, 5);
 
       console.log('[Patient Portal] Fetching upcoming appointments for patient:', patientId);
 
@@ -491,16 +527,18 @@ router.get(
           },
           OR: [
             {
+              // Future dates (after today)
               appointmentDate: {
-                gt: now,
+                gt: todayMidnight,
               },
             },
             {
+              // Today's appointments with time >= current IST time
               appointmentDate: {
-                gte: new Date(now.setHours(0, 0, 0, 0)),
+                gte: todayMidnight,
               },
               startTime: {
-                gte: now.toTimeString().slice(0, 5),
+                gte: currentTimeStr,
               },
             },
           ],

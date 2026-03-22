@@ -11,9 +11,12 @@ import {
   Plus,
   Receipt,
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  ShoppingCart
 } from 'lucide-react';
 import CollapsibleCard from '../../components/ui/CollapsibleCard';
+import { SkeletonDashboard } from '../../components/ui/Skeleton';
+import StatCard from '../../components/ui/StatCard';
 import { pharmacyAPI } from '../../lib/api';
 
 interface DashboardStats {
@@ -85,11 +88,7 @@ export default function PharmacyDashboard() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   return (
@@ -107,75 +106,50 @@ export default function PharmacyDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="hms-four-col">
-        <Link to="/pharmacy/prescriptions" className="block">
-          <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-all duration-200 hover:border-orange-300 cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-orange-100">
-                <FileText className="w-5 h-5 text-orange-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-secondary-500 uppercase tracking-wide">Pending</p>
-                <p className="text-2xl font-bold text-secondary-900">{stats?.pendingPrescriptions || 0}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-secondary-400" />
-            </div>
-          </div>
-        </Link>
-
-        <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-green-100">
-              <IndianRupee className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-xs text-secondary-500 uppercase tracking-wide">Today's Sales</p>
-              <p className="text-2xl font-bold text-secondary-900">{formatCurrency(stats?.todaySales || 0)}</p>
-            </div>
-          </div>
-        </div>
-
-        <Link to="/pharmacy/inventory?filter=lowStock" className="block">
-          <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-all duration-200 hover:border-red-300 cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-red-100">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-secondary-500 uppercase tracking-wide">Low Stock</p>
-                <p className="text-2xl font-bold text-secondary-900">{stats?.lowStockItems || 0}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-secondary-400" />
-            </div>
-          </div>
-        </Link>
-
-        <Link to="/pharmacy/inventory?filter=expiring" className="block">
-          <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-4 hover:shadow-card-hover transition-all duration-200 hover:border-yellow-300 cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-yellow-100">
-                <Clock className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-secondary-500 uppercase tracking-wide">Expiring Soon</p>
-                <p className="text-2xl font-bold text-secondary-900">{stats?.expiringItems || 0}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-secondary-400" />
-            </div>
-          </div>
-        </Link>
+      <div className="hms-stats-grid">
+        <StatCard
+          title="Pending"
+          value={stats?.pendingPrescriptions || 0}
+          icon={<FileText className="w-6 h-6" />}
+          color="yellow"
+          subtitle="Prescriptions waiting"
+          onClick={() => window.location.href = '/pharmacy/prescriptions'}
+        />
+        <StatCard
+          title="Today's Sales"
+          value={formatCurrency(stats?.todaySales || 0)}
+          icon={<IndianRupee className="w-6 h-6" />}
+          color="green"
+          subtitle="Revenue today"
+        />
+        <StatCard
+          title="Low Stock"
+          value={stats?.lowStockItems || 0}
+          icon={<AlertTriangle className="w-6 h-6" />}
+          color="red"
+          subtitle="Below reorder level"
+          onClick={() => window.location.href = '/pharmacy/inventory?filter=lowStock'}
+        />
+        <StatCard
+          title="Expiring Soon"
+          value={stats?.expiringItems || 0}
+          icon={<Clock className="w-6 h-6" />}
+          color="purple"
+          subtitle="Within 60 days"
+          onClick={() => window.location.href = '/pharmacy/inventory?filter=expiring'}
+        />
       </div>
 
       {/* Alerts Banner */}
       {(stats?.lowStockItems || 0) > 0 || (stats?.expiringItems || 0) > 0 ? (
-        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-4">
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-red-100 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-red-800">Attention Required</h3>
-              <div className="mt-2 text-sm text-red-700 space-y-1">
+              <h3 className="font-semibold text-red-800 dark:text-red-300">Attention Required</h3>
+              <div className="mt-2 text-sm text-red-700 dark:text-red-400 space-y-1">
                 {(stats?.lowStockItems || 0) > 0 && (
                   <p>• {stats?.lowStockItems} items are below reorder level</p>
                 )}
@@ -238,14 +212,14 @@ export default function PharmacyDashboard() {
           <div className="space-y-3">
             {stats?.recentTransactions && stats.recentTransactions.length > 0 ? (
               stats.recentTransactions.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between p-3 bg-secondary-50 rounded-lg hover:bg-secondary-100 transition-colors">
+                <div key={tx.id} className="flex items-center justify-between p-3 bg-secondary-50 dark:bg-gray-800 rounded-lg hover:bg-secondary-100 dark:hover:bg-gray-700 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-green-100 rounded-lg">
                       <Receipt className="w-4 h-4 text-green-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-secondary-900">{tx.patientName}</p>
-                      <p className="text-xs text-secondary-500">{tx.dispenseNumber} • {formatTime(tx.time)}</p>
+                      <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{tx.patientName}</p>
+                      <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{tx.dispenseNumber} • {formatTime(tx.time)}</p>
                     </div>
                   </div>
                   <span className="font-semibold text-green-600">{formatCurrency(tx.amount)}</span>
@@ -331,6 +305,17 @@ export default function PharmacyDashboard() {
             </Link>
 
             <Link
+              to="/pharmacy/manual-billing"
+              className="flex flex-col items-center p-4 bg-teal-50 rounded-xl hover:bg-teal-100 transition-colors group"
+            >
+              <div className="p-3 bg-teal-100 rounded-xl mb-2 group-hover:scale-110 transition-transform">
+                <ShoppingCart className="w-6 h-6 text-teal-600" />
+              </div>
+              <span className="text-sm font-medium text-teal-700">Manual Billing</span>
+              <span className="text-xs text-teal-500 mt-1">Over the counter</span>
+            </Link>
+
+            <Link
               to="/pharmacy/inventory?action=add"
               className="flex flex-col items-center p-4 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors group"
             >
@@ -407,14 +392,14 @@ export default function PharmacyDashboard() {
         <div className="space-y-3">
           {stats?.topSellingMedicines && stats.topSellingMedicines.length > 0 ? (
             stats.topSellingMedicines.map((med, index) => (
-              <div key={med.medicineId} className="flex items-center justify-between p-3 bg-secondary-50 rounded-lg">
+              <div key={med.medicineId} className="flex items-center justify-between p-3 bg-secondary-50 dark:bg-gray-800 rounded-lg hover:bg-secondary-100 dark:hover:bg-gray-700 transition-colors">
                 <div className="flex items-center gap-3">
                   <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold">
                     {index + 1}
                   </span>
                   <div>
-                    <p className="font-medium text-secondary-900">{med.medicineName}</p>
-                    <p className="text-xs text-secondary-500">{med.totalQuantity} units sold</p>
+                    <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{med.medicineName}</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{med.totalQuantity} units sold</p>
                   </div>
                 </div>
                 <span className="font-semibold text-green-600">{formatCurrency(med.totalRevenue)}</span>

@@ -22,9 +22,14 @@ import {
   CreditCard,
   BarChart3,
   Package,
+  ShoppingCart,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
+import { useTheme } from '../contexts/ThemeContext';
 import NotificationBell from '../components/NotificationBell';
+import { connectSocket, disconnectSocket } from '../lib/socket';
 
 const navigation = {
   ADMIN: [
@@ -50,6 +55,7 @@ const navigation = {
   PHARMACIST: [
     { name: 'Dashboard', path: '/pharmacy/dashboard', icon: Home },
     { name: 'Prescriptions', path: '/pharmacy/prescriptions', icon: ClipboardList },
+    { name: 'Manual Billing', path: '/pharmacy/manual-billing', icon: ShoppingCart },
     { name: 'Inventory', path: '/pharmacy/inventory', icon: Package },
     { name: 'Bills', path: '/pharmacy/bills', icon: CreditCard },
     { name: 'Expenses', path: '/pharmacy/expenses', icon: FileText },
@@ -95,12 +101,24 @@ export default function DashboardLayout() {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { user, logout } = useAuthStore();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const navItems = navigation[user?.role as keyof typeof navigation] || [];
   const roleInfo = roleConfig[user?.role as keyof typeof roleConfig] || { label: user?.role, color: 'bg-navy-100/80 text-navy-700 border border-navy-200' };
+
+  // Connect/disconnect socket on auth lifecycle
+  useEffect(() => {
+    if (user?.id && user?.role && user?.hospitalId) {
+      const token = localStorage.getItem('auth-token');
+      if (token) {
+        connectSocket(token);
+      }
+    }
+    return () => { disconnectSocket(); };
+  }, [user?.id]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -114,8 +132,10 @@ export default function DashboardLayout() {
   }, []);
 
   const handleLogout = () => {
+    localStorage.removeItem('auth-token');
+    const isPatient = user?.role === 'PATIENT';
     logout();
-    navigate('/login');
+    navigate(isPatient ? '/patient-login' : '/login');
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -125,7 +145,7 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#F8FAFC' }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--color-bg-soft)' }}>
       {/* ============================================
           SIDEBAR - FUTURISTIC DARK NAVY THEME
           ============================================ */}
@@ -254,11 +274,11 @@ export default function DashboardLayout() {
         {/* ============================================
             HEADER - LIGHT, CLEAN DESIGN
             ============================================ */}
-        <header 
+        <header
           className="sticky top-0 z-30 h-16 flex items-center px-4 sm:px-6 shrink-0"
           style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            borderBottom: '1px solid #E2E8F0',
+            backgroundColor: 'var(--color-header-bg)',
+            borderBottom: `1px solid var(--color-header-border)`,
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
           }}
@@ -274,7 +294,7 @@ export default function DashboardLayout() {
 
             {/* Page Title - Visible on larger screens */}
             <div className="hidden md:block">
-              <h1 className="text-lg font-semibold" style={{ color: '#0F172A' }}>
+              <h1 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                 {navItems.find(item => item.path === location.pathname)?.name || 'Dashboard'}
               </h1>
             </div>
@@ -284,7 +304,7 @@ export default function DashboardLayout() {
           <div className="hidden md:flex flex-1 justify-center px-8">
             <form onSubmit={handleSearch} className="w-full max-w-md">
               <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#64748B' }} />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-search-icon)' }} />
                 <input
                   type="text"
                   placeholder="Search patients, appointments..."
@@ -292,17 +312,17 @@ export default function DashboardLayout() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all duration-200 focus:outline-none focus:ring-2"
                   style={{
-                    backgroundColor: '#F1F5F9',
+                    backgroundColor: 'var(--color-search-bg)',
                     border: '1px solid transparent',
-                    color: '#0F172A',
+                    color: 'var(--color-text-primary)',
                   }}
                   onFocus={(e) => {
-                    e.target.style.backgroundColor = '#FFFFFF';
+                    e.target.style.backgroundColor = 'var(--color-bg-card)';
                     e.target.style.borderColor = '#2563EB';
                     e.target.style.setProperty('--tw-ring-color', 'rgba(37, 99, 235, 0.15)');
                   }}
                   onBlur={(e) => {
-                    e.target.style.backgroundColor = '#F1F5F9';
+                    e.target.style.backgroundColor = 'var(--color-search-bg)';
                     e.target.style.borderColor = 'transparent';
                   }}
                 />
@@ -313,8 +333,20 @@ export default function DashboardLayout() {
           {/* Right Section - Actions */}
           <div className="flex items-center gap-2 ml-auto">
             {/* Mobile Search Button */}
-            <button className="md:hidden p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors duration-150">
+            <button className="md:hidden p-2.5 rounded-xl transition-colors duration-150" style={{ color: 'var(--color-text-secondary)' }}>
               <Search className="w-5 h-5" />
+            </button>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2.5 rounded-xl transition-colors duration-200"
+              style={{ color: 'var(--color-text-secondary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-search-bg)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
             {/* Notification Bell */}
@@ -324,7 +356,9 @@ export default function DashboardLayout() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-slate-100 transition-colors duration-150"
+                className="flex items-center gap-2 p-1.5 pr-3 rounded-xl transition-colors duration-150"
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-search-bg)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <div 
                   className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -346,27 +380,27 @@ export default function DashboardLayout() {
 
               {/* Dropdown Menu */}
               {userDropdownOpen && (
-                <div 
+                <div
                   className="absolute right-0 mt-2 w-56 rounded-xl z-50 overflow-hidden"
                   style={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #E2E8F0',
+                    backgroundColor: 'var(--color-card-bg)',
+                    border: '1px solid var(--color-border)',
                     boxShadow: '0 10px 40px rgba(15, 23, 42, 0.15)',
                     animation: 'scaleIn 0.15s ease-out',
                   }}
                 >
                   {/* User Info Header */}
-                  <div 
+                  <div
                     className="px-4 py-3"
-                    style={{ 
-                      borderBottom: '1px solid #E2E8F0',
-                      backgroundColor: 'rgba(248, 250, 252, 0.5)',
+                    style={{
+                      borderBottom: '1px solid var(--color-border)',
+                      backgroundColor: 'var(--color-bg-input)',
                     }}
                   >
-                    <p className="text-sm font-medium" style={{ color: '#0F172A' }}>
+                    <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
                       {user?.firstName} {user?.lastName}
                     </p>
-                    <p className="text-xs" style={{ color: '#64748B' }}>{user?.email}</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{user?.email}</p>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium mt-1.5 ${roleInfo.color}`}>
                       {roleInfo.label}
                     </span>
@@ -378,11 +412,11 @@ export default function DashboardLayout() {
                       to={user?.role === 'PATIENT' ? '/patient/profile' : `/${user?.role?.toLowerCase()}/settings`}
                       onClick={() => setUserDropdownOpen(false)}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150"
-                      style={{ color: '#475569' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F1F5F9'}
+                      style={{ color: 'var(--color-text-secondary)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-search-bg)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <User className="w-4 h-4" style={{ color: '#94A3B8' }} />
+                      <User className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
                       <span>My Profile</span>
                     </Link>
                     {user?.role !== 'PATIENT' && (
@@ -390,18 +424,18 @@ export default function DashboardLayout() {
                         to={`/${user?.role?.toLowerCase()}/settings`}
                         onClick={() => setUserDropdownOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150"
-                        style={{ color: '#475569' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F1F5F9'}
+                        style={{ color: 'var(--color-text-secondary)' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-search-bg)'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
-                        <Settings className="w-4 h-4" style={{ color: '#94A3B8' }} />
+                        <Settings className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
                         <span>Settings</span>
                       </Link>
                     )}
                   </div>
 
                   {/* Logout */}
-                  <div className="py-1" style={{ borderTop: '1px solid #E2E8F0' }}>
+                  <div className="py-1" style={{ borderTop: '1px solid var(--color-border)' }}>
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-3 px-4 py-2.5 w-full text-sm transition-colors duration-150"
@@ -429,15 +463,15 @@ export default function DashboardLayout() {
         {/* ============================================
             FOOTER
             ============================================ */}
-        <footer 
+        <footer
           className="px-4 sm:px-6 py-2.5 shrink-0"
           style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.5)',
-            borderTop: '1px solid #E2E8F0',
+            backgroundColor: 'var(--color-header-bg)',
+            borderTop: '1px solid var(--color-header-border)',
             backdropFilter: 'blur(4px)',
           }}
         >
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-1 text-xs" style={{ color: '#64748B' }}>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
             <p>© 2026 Hospital Management System. All rights reserved.</p>
             <p>Version 2.0.0 • Healthcare SaaS Platform</p>
           </div>

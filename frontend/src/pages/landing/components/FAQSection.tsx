@@ -44,16 +44,18 @@ const FAQSection = () => {
   };
 
   return (
-    <section id="faq" className="py-20 lg:py-28 bg-gradient-to-b from-white to-slate-50/50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="py-20 lg:py-28 relative">
+      {/* Section background tint — soft indigo-to-blue fade */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-50/30 to-blue-50/20 pointer-events-none" />
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50/80 backdrop-blur-sm rounded-full mb-6 border border-blue-100/50">
             <HelpCircle className="w-4 h-4 text-blue-600" />
             <span className="text-sm font-semibold text-blue-700">FAQ</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
-            Frequently Asked Questions
+            Frequently Asked <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">Questions</span>
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
             Find answers to common questions about our services, appointments, and patient care
@@ -65,10 +67,10 @@ const FAQSection = () => {
           {faqs.map((faq, index) => (
             <div
               key={index}
-              className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${
+              className={`bg-white/90 backdrop-blur-sm rounded-2xl border transition-all duration-300 overflow-hidden ${
                 openIndex === index
-                  ? 'border-blue-200 shadow-xl shadow-blue-500/5'
-                  : 'border-slate-100 hover:border-slate-200 hover:shadow-lg'
+                  ? 'border-blue-200 shadow-xl shadow-blue-500/8'
+                  : 'border-slate-200/60 hover:border-slate-300/60 hover:shadow-lg'
               }`}
             >
               <button
@@ -121,7 +123,7 @@ const FAQSection = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
               href="tel:+1234567890"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-slate-700 rounded-xl font-semibold border-2 border-slate-200 hover:border-blue-300 hover:text-blue-600 transition-all duration-300 shadow-sm hover:shadow-lg"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white/90 backdrop-blur-sm text-slate-700 rounded-xl font-semibold border-2 border-slate-200/60 hover:border-blue-300 hover:text-blue-600 transition-all duration-300 shadow-sm hover:shadow-lg"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />

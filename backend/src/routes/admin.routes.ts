@@ -48,19 +48,31 @@ router.get('/dashboard-stats', authenticate, authorize('ADMIN'), async (req: Req
     ]);
 
     // Queue status by department
-    const queueStatus = await prisma.queueEntry.groupBy({
+    const queueStatusRaw = await prisma.queueEntry.groupBy({
       by: ['status'],
       where: { hospitalId, status: { in: ['WAITING', 'IN_VITALS', 'WITH_DOCTOR'] } },
       _count: true,
     });
 
+    // Transform groupBy result to match frontend expected shape: { department, waiting, inProgress }
+    const waitingCount = (queueStatusRaw.find((s: any) => s.status === 'WAITING') as any)?._count ?? 0;
+    const inVitalsCount = (queueStatusRaw.find((s: any) => s.status === 'IN_VITALS') as any)?._count ?? 0;
+    const withDoctorCount = (queueStatusRaw.find((s: any) => s.status === 'WITH_DOCTOR') as any)?._count ?? 0;
+
+    const queueStatus = [{
+      department: 'OPD',
+      waiting: waitingCount + inVitalsCount,
+      inProgress: withDoctorCount,
+    }];
+
     // Alerts
-    const lowStockItems = await prisma.inventory.count({
-      where: {
-        hospitalId,
-        quantity: { lte: prisma.inventory.fields.reorderLevel },
-      },
+    const allInventory = await prisma.inventory.findMany({
+      where: { hospitalId },
+      select: { quantity: true, reorderLevel: true },
     });
+    const lowStockItems = allInventory.filter(
+      (item) => item.reorderLevel !== null && item.quantity <= item.reorderLevel
+    ).length;
 
     const overdueBills = await prisma.bill.count({
       where: {
@@ -571,6 +583,184 @@ router.get('/payouts', authenticate, authorize('ADMIN'), async (req: Request, re
     res.json({
       success: true,
       data: payouts,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
+// REPORTS ENDPOINTS
+// ============================================
+
+// @route   GET /api/admin/reports/summary
+// @desc    Get KPI summary for date range
+// @access  Private (Admin)
+router.get('/reports/summary', authenticate, authorize('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hospitalId = req.user!.hospitalId;
+    const startDate = new Date(req.query.startDate as string || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    const endDate = new Date(req.query.endDate as string || new Date().toISOString().split('T')[0]);
+    endDate.setHours(23, 59, 59, 999);
+
+    const rangeDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const prevStart = new Date(startDate.getTime() - rangeDays * 24 * 60 * 60 * 1000);
+    const prevEnd = new Date(startDate.getTime() - 1);
+
+    // Current period
+    const [patients, prevPatients, revenue, prevRevenue, appointments, prevAppointments] = await Promise.all([
+      prisma.patient.count({
+        where: { hospitalId, createdAt: { gte: startDate, lte: endDate } },
+      }),
+      prisma.patient.count({
+        where: { hospitalId, createdAt: { gte: prevStart, lte: prevEnd } },
+      }),
+      prisma.payment.aggregate({
+        where: { hospitalId, status: 'completed', createdAt: { gte: startDate, lte: endDate } },
+        _sum: { amount: true },
+      }),
+      prisma.payment.aggregate({
+        where: { hospitalId, status: 'completed', createdAt: { gte: prevStart, lte: prevEnd } },
+        _sum: { amount: true },
+      }),
+      prisma.appointment.count({
+        where: { hospitalId, createdAt: { gte: startDate, lte: endDate }, status: { not: 'CANCELLED' } },
+      }),
+      prisma.appointment.count({
+        where: { hospitalId, createdAt: { gte: prevStart, lte: prevEnd }, status: { not: 'CANCELLED' } },
+      }),
+    ]);
+
+    // Average wait time from queue entries
+    const queueEntries = await prisma.queueEntry.findMany({
+      where: {
+        hospitalId,
+        createdAt: { gte: startDate, lte: endDate },
+        calledAt: { not: null },
+      },
+      select: { createdAt: true, calledAt: true },
+    });
+
+    let avgWaitMinutes = 0;
+    if (queueEntries.length > 0) {
+      const totalWait = queueEntries.reduce((sum, q) => {
+        return sum + (q.calledAt!.getTime() - q.createdAt.getTime());
+      }, 0);
+      avgWaitMinutes = Math.round(totalWait / queueEntries.length / 60000);
+    }
+
+    const calcChange = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const currRevenue = Number(revenue._sum.amount || 0);
+    const prevRev = Number(prevRevenue._sum.amount || 0);
+
+    res.json({
+      success: true,
+      data: [
+        { label: 'Total Patients', value: patients, change: calcChange(patients, prevPatients) },
+        { label: 'Total Revenue', value: `₹${currRevenue.toLocaleString('en-IN')}`, change: calcChange(currRevenue, prevRev) },
+        { label: 'Appointments', value: appointments, change: calcChange(appointments, prevAppointments) },
+        { label: 'Avg. Wait Time', value: `${avgWaitMinutes} min`, change: 0 },
+      ],
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @route   GET /api/admin/reports/daily
+// @desc    Get daily stats for date range
+// @access  Private (Admin)
+router.get('/reports/daily', authenticate, authorize('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hospitalId = req.user!.hospitalId;
+    const startDate = new Date(req.query.startDate as string || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    const endDate = new Date(req.query.endDate as string || new Date().toISOString().split('T')[0]);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Build daily stats by iterating each day
+    const dailyStats: { date: string; patients: number; revenue: number; appointments: number }[] = [];
+    const current = new Date(startDate);
+
+    while (current <= endDate) {
+      const dayStart = new Date(current);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(current);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const [patientCount, apptCount, revenueAgg] = await Promise.all([
+        prisma.patient.count({
+          where: { hospitalId, createdAt: { gte: dayStart, lte: dayEnd } },
+        }),
+        prisma.appointment.count({
+          where: { hospitalId, appointmentDate: dayStart, status: { not: 'CANCELLED' } },
+        }),
+        prisma.payment.aggregate({
+          where: { hospitalId, status: 'completed', createdAt: { gte: dayStart, lte: dayEnd } },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      dailyStats.push({
+        date: dayStart.toISOString().split('T')[0],
+        patients: patientCount,
+        appointments: apptCount,
+        revenue: Number(revenueAgg._sum.amount || 0),
+      });
+
+      current.setDate(current.getDate() + 1);
+    }
+
+    res.json({
+      success: true,
+      data: dailyStats,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @route   GET /api/admin/reports/departments
+// @desc    Get patient count by department (doctor specialty)
+// @access  Private (Admin)
+router.get('/reports/departments', authenticate, authorize('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hospitalId = req.user!.hospitalId;
+    const startDate = new Date(req.query.startDate as string || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    const endDate = new Date(req.query.endDate as string || new Date().toISOString().split('T')[0]);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Get appointments grouped by doctor specialty
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        hospitalId,
+        createdAt: { gte: startDate, lte: endDate },
+        status: { not: 'CANCELLED' },
+      },
+      select: {
+        doctor: {
+          select: { specialty: true },
+        },
+      },
+    });
+
+    // Count by specialty
+    const deptMap: Record<string, number> = {};
+    for (const appt of appointments) {
+      const dept = appt.doctor.specialty || 'General';
+      deptMap[dept] = (deptMap[dept] || 0) + 1;
+    }
+
+    const departmentStats = Object.entries(deptMap)
+      .map(([department, count]) => ({ department, count }))
+      .sort((a, b) => b.count - a.count);
+
+    res.json({
+      success: true,
+      data: departmentStats,
     });
   } catch (error) {
     next(error);

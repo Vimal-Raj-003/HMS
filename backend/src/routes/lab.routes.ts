@@ -40,10 +40,12 @@ router.get('/dashboard-stats', authenticate, authorize('LAB_TECH'), async (req: 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get counts for each status
-    const [pendingOrders, samplesCollected, resultsPending, completedToday, criticalAlerts] = await Promise.all([
+    console.log('[Lab Dashboard] Fetching stats for hospital:', hospitalId);
+
+    // Get counts for each status - include 'recommended' and 'ordered' as pending
+    const [pendingOrders, samplesCollected, resultsPending, completedToday, criticalAlerts, recommendedOrders] = await Promise.all([
       prisma.labOrder.count({
-        where: { hospitalId, status: 'ordered' },
+        where: { hospitalId, status: { in: ['ordered', 'recommended'] } },
       }),
       prisma.labOrder.count({
         where: { hospitalId, status: 'sample_collected' },
@@ -60,7 +62,12 @@ router.get('/dashboard-stats', authenticate, authorize('LAB_TECH'), async (req: 
           isCritical: true,
         },
       }),
+      prisma.labOrder.count({
+        where: { hospitalId, status: 'recommended' },
+      }),
     ]);
+
+    console.log('[Lab Dashboard] Stats:', { pendingOrders, recommendedOrders, samplesCollected, resultsPending, completedToday, criticalAlerts });
 
     // Calculate today's revenue from lab billing
     const todayRevenueResult = await prisma.labBilling.aggregate({
@@ -78,6 +85,7 @@ router.get('/dashboard-stats', authenticate, authorize('LAB_TECH'), async (req: 
       success: true,
       data: {
         pendingOrders,
+        recommendedOrders,
         samplesCollected,
         resultsPending,
         completedToday,
@@ -102,7 +110,12 @@ router.get('/orders', authenticate, authorize('LAB_TECH'), async (req: Request, 
     const whereClause: any = { hospitalId };
 
     if (status && status !== 'all') {
-      whereClause.status = status;
+      const statusStr = status as string;
+      if (statusStr.includes(',')) {
+        whereClause.status = { in: statusStr.split(',').map(s => s.trim()) };
+      } else {
+        whereClause.status = statusStr;
+      }
     }
 
     if (priority && priority !== 'all') {
@@ -386,10 +399,11 @@ router.post(
         throw ApiError.notFound('Lab order not found', 'ORDER_NOT_FOUND');
       }
 
-      if (existingOrder.status !== 'ordered') {
+      // Accept both 'ordered' and 'recommended' statuses for sample collection
+      if (!['ordered', 'recommended'].includes(existingOrder.status)) {
         return res.status(400).json({
           success: false,
-          message: 'Sample can only be collected for orders with "ordered" status',
+          message: 'Sample can only be collected for orders with "ordered" or "recommended" status',
         });
       }
 
@@ -598,7 +612,33 @@ router.post(
           },
         });
 
-        // Notify doctor and patient
+        // Create DB notifications (matching Path B pattern for NotificationBell visibility)
+        if (order.patientId) {
+          await prisma.notification.create({
+            data: {
+              hospitalId,
+              userId: order.patientId,
+              type: 'LAB_RESULT_READY',
+              title: 'Lab Report Ready',
+              message: 'Your lab test results are now available.',
+              data: JSON.stringify({ orderId: id }),
+            },
+          });
+        }
+        if (order.doctorId) {
+          await prisma.notification.create({
+            data: {
+              hospitalId,
+              userId: order.doctorId,
+              type: 'LAB_RESULT_READY',
+              title: 'Lab Result Available',
+              message: 'Lab results for your patient are available for review.',
+              data: JSON.stringify({ orderId: id, patientId: order.patientId }),
+            },
+          });
+        }
+
+        // Notify doctor and patient via socket
         if (io && order.doctorId && order.patientId) {
           emitLabResultReady(io, order.patientId, order.doctorId, { orderId: id });
         }
@@ -1050,6 +1090,482 @@ router.get('/results/pending', authenticate, authorize('LAB_TECH'), async (req: 
     });
   } catch (error) {
     console.error('[Pending Results] Error:', error);
+    next(error);
+  }
+});
+
+// ============================================
+// LAB RECOMMENDATION ENDPOINTS (Doctor -> Lab)
+// ============================================
+
+// @route   POST /api/lab/recommend
+// @desc    Doctor recommends lab tests for a patient
+// @access  Private (Doctor)
+router.post(
+  '/recommend',
+  authenticate,
+  authorize('DOCTOR'),
+  [
+    body('patientId').notEmpty().withMessage('Patient ID is required'),
+    body('appointmentId').notEmpty().withMessage('Appointment ID is required'),
+    body('testList').isArray({ min: 1 }).withMessage('At least one test is required'),
+    body('notes').optional().isString(),
+    body('isUrgent').optional().isBoolean(),
+  ],
+  validate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { patientId, appointmentId, testList, notes, isUrgent } = req.body;
+      const doctorId = req.user!.id;
+      const hospitalId = req.user!.hospitalId;
+
+      // Check for duplicate lab orders for this appointment
+      const existingOrder = await prisma.labOrder.findFirst({
+        where: {
+          hospitalId,
+          appointmentId,
+          status: { in: ['recommended', 'ordered', 'sample_collected', 'processing'] },
+        },
+      });
+
+      if (existingOrder) {
+        return res.status(400).json({
+          success: false,
+          message: 'Lab order already exists for this appointment',
+        });
+      }
+
+      // Generate order number
+      const labOrderCount = await prisma.labOrder.count({ where: { hospitalId } });
+      const orderNumber = `LAB-${String(labOrderCount + 1).padStart(6, '0')}`;
+
+      // Get or create consultation
+      let consultation = await prisma.consultation.findFirst({
+        where: { appointmentId },
+      });
+
+      // Create lab order with recommended status
+      const labOrder = await prisma.labOrder.create({
+        data: {
+          hospitalId,
+          patientId,
+          doctorId,
+          appointmentId,
+          consultationId: consultation?.id,
+          orderNumber,
+          priority: isUrgent ? 'urgent' : 'normal',
+          status: 'recommended',
+          isUrgent: isUrgent || false,
+          notes,
+          items: {
+            create: testList.map((test: { testId: string; testName: string; testCategory?: string }) => ({
+              testId: test.testId,
+              status: 'pending',
+            })),
+          },
+        },
+        include: {
+          items: {
+            include: {
+              test: true,
+            },
+          },
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              patientNumber: true,
+            },
+          },
+        },
+      });
+
+      // Create notification for patient
+      await prisma.notification.create({
+        data: {
+          hospitalId,
+          userId: patientId,
+          type: 'LAB_TEST_RECOMMENDED',
+          title: 'Lab Test Recommended',
+          message: `Your doctor has recommended lab tests. Please visit the lab for sample collection.`,
+          data: JSON.stringify({
+            orderId: labOrder.id,
+            orderNumber: labOrder.orderNumber,
+            appointmentId,
+          }),
+        },
+      });
+
+      // Emit real-time notification
+      if (io) {
+        io.to(`user:${patientId}`).emit('notification', {
+          type: 'LAB_TEST_RECOMMENDED',
+          title: 'Lab Test Recommended',
+          message: 'Your doctor has recommended lab tests.',
+          data: { orderId: labOrder.id },
+        });
+
+        // Notify lab dashboard
+        io.to(`hospital:${hospitalId}:role:LAB_TECH`).emit('new-lab-order', {
+          orderId: labOrder.id,
+          orderNumber: labOrder.orderNumber,
+          patientName: `${labOrder.patient.firstName} ${labOrder.patient.lastName}`,
+          priority: labOrder.priority,
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Lab tests recommended successfully',
+        data: {
+          id: labOrder.id,
+          orderNumber: labOrder.orderNumber,
+          status: labOrder.status,
+          tests: labOrder.items.map(item => ({
+            id: item.id,
+            name: item.test.name,
+            code: item.test.code,
+          })),
+        },
+      });
+    } catch (error) {
+      console.error('[Lab Recommend] Error:', error);
+      next(error);
+    }
+  }
+);
+
+// @route   POST /api/lab/orders/:id/accept
+// @desc    Lab accepts a recommended order
+// @access  Private (Lab Tech)
+router.post(
+  '/orders/:id/accept',
+  authenticate,
+  authorize('LAB_TECH'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const hospitalId = req.user!.hospitalId;
+
+      const order = await prisma.labOrder.findFirst({
+        where: { id, hospitalId },
+        include: { patient: true },
+      });
+
+      if (!order) {
+        throw ApiError.notFound('Lab order not found', 'ORDER_NOT_FOUND');
+      }
+
+      if (order.status !== 'recommended') {
+        return res.status(400).json({
+          success: false,
+          message: 'Only recommended orders can be accepted',
+        });
+      }
+
+      // Update status to assigned (ordered)
+      const updatedOrder = await prisma.labOrder.update({
+        where: { id },
+        data: { status: 'ordered' },
+      });
+
+      // Notify patient
+      await prisma.notification.create({
+        data: {
+          hospitalId,
+          userId: order.patientId,
+          type: 'LAB_ORDER_ACCEPTED',
+          title: 'Lab Order Accepted',
+          message: 'Your lab test order has been accepted. Please proceed for sample collection.',
+          data: JSON.stringify({ orderId: id }),
+        },
+      });
+
+      if (io) {
+        io.to(`user:${order.patientId}`).emit('notification', {
+          type: 'LAB_ORDER_ACCEPTED',
+          title: 'Lab Order Accepted',
+          message: 'Your lab test order has been accepted.',
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Lab order accepted successfully',
+        data: { orderId: id, status: updatedOrder.status },
+      });
+    } catch (error) {
+      console.error('[Lab Accept] Error:', error);
+      next(error);
+    }
+  }
+);
+
+// @route   POST /api/lab/result
+// @desc    Lab submits test results with optional file
+// @access  Private (Lab Tech)
+router.post(
+  '/result',
+  authenticate,
+  authorize('LAB_TECH'),
+  [
+    body('labOrderId').notEmpty().withMessage('Lab order ID is required'),
+    body('patientId').notEmpty().withMessage('Patient ID is required'),
+    body('resultData').notEmpty().withMessage('Result data is required'),
+    body('fileUrl').optional().isString(),
+  ],
+  validate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { labOrderId, patientId, resultData, fileUrl, fileType, notes } = req.body;
+      const hospitalId = req.user!.hospitalId;
+      const createdBy = req.user!.id;
+
+      // Verify order exists and belongs to hospital
+      const order = await prisma.labOrder.findFirst({
+        where: { id: labOrderId, hospitalId },
+        include: {
+          items: { include: { test: true } },
+          doctor: true
+        },
+      });
+
+      if (!order) {
+        throw ApiError.notFound('Lab order not found', 'ORDER_NOT_FOUND');
+      }
+
+      // SECURITY: Always use the doctor ID from the verified lab order.
+      // Never accept doctorId from request body as it could be spoofed.
+      const verifiedDoctorId = order.doctorId;
+
+      // Parse result data if string
+      const parsedResultData = typeof resultData === 'string' ? resultData : JSON.stringify(resultData);
+
+      // Create lab result
+      const labResult = await prisma.labResult.create({
+        data: {
+          labOrderId,
+          patientId,
+          doctorId: verifiedDoctorId,
+          testName: order.items.map(i => i.test?.name || i.testId).join(', '),
+          resultData: parsedResultData,
+          fileUrl,
+          fileType,
+          status: 'completed',
+          notes,
+          createdBy,
+        },
+      });
+
+      // Update lab order status to completed
+      await prisma.labOrder.update({
+        where: { id: labOrderId },
+        data: {
+          status: 'completed',
+          reportUrl: fileUrl,
+        },
+      });
+
+      // Update all order items to completed
+      await prisma.labOrderItem.updateMany({
+        where: { orderId: labOrderId },
+        data: { status: 'completed', completedAt: new Date() },
+      });
+
+      // Notify patient
+      await prisma.notification.create({
+        data: {
+          hospitalId,
+          userId: patientId,
+          type: 'LAB_RESULT_READY',
+          title: 'Lab Report Ready',
+          message: 'Your lab test results are now available. You can view or download your report.',
+          data: JSON.stringify({ orderId: labOrderId, resultId: labResult.id }),
+        },
+      });
+
+      // Notify doctor
+      if (order.doctorId) {
+        await prisma.notification.create({
+          data: {
+            hospitalId,
+            userId: order.doctorId,
+            type: 'LAB_RESULT_READY',
+            title: 'Lab Result Available',
+            message: `Lab results for patient are now available for review.`,
+            data: JSON.stringify({ orderId: labOrderId, resultId: labResult.id, patientId }),
+          },
+        });
+      }
+
+      // Real-time notifications
+      if (io) {
+        io.to(`user:${patientId}`).emit('notification', {
+          type: 'LAB_RESULT_READY',
+          title: 'Lab Report Ready',
+          message: 'Your lab test results are now available.',
+          data: { orderId: labOrderId, resultId: labResult.id },
+        });
+
+        if (order.doctorId) {
+          io.to(`user:${order.doctorId}`).emit('notification', {
+            type: 'LAB_RESULT_READY',
+            title: 'Lab Result Available',
+            message: 'Lab results for your patient are available.',
+            data: { orderId: labOrderId, patientId },
+          });
+        }
+
+        emitLabResultReady(io, patientId, order.doctorId || '', { orderId: labOrderId });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Lab results submitted successfully',
+        data: {
+          resultId: labResult.id,
+          orderId: labOrderId,
+          status: 'completed',
+        },
+      });
+    } catch (error) {
+      console.error('[Lab Result] Error:', error);
+      next(error);
+    }
+  }
+);
+
+// @route   GET /api/lab/results/:patientId
+// @desc    Get lab results for a specific patient
+// @access  Private (Patient, Doctor, Lab Tech)
+router.get(
+  '/results/:patientId',
+  authenticate,
+  authorize('PATIENT', 'DOCTOR', 'LAB_TECH', 'PHARMACIST', 'ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { patientId } = req.params;
+      const hospitalId = req.user!.hospitalId;
+      const userRole = req.user!.role;
+      const userId = req.user!.id;
+
+      // Authorization check - patients can only see their own results
+      if (userRole === 'PATIENT' && userId !== patientId) {
+        throw ApiError.forbidden('You can only view your own lab results', 'ACCESS_DENIED');
+      }
+
+      // Get all lab results for the patient
+      const labResults = await prisma.labResult.findMany({
+        where: { patientId },
+        include: {
+          labOrder: {
+            include: {
+              doctor: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  specialty: true,
+                },
+              },
+              items: {
+                include: {
+                  test: {
+                    select: {
+                      name: true,
+                      code: true,
+                      category: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const transformedResults = labResults.map(result => ({
+        id: result.id,
+        orderId: result.labOrderId,
+        orderNumber: result.labOrder.orderNumber,
+        date: result.createdAt.toISOString(),
+        testName: result.testName,
+        tests: result.labOrder.items.map(item => ({
+          id: item.id,
+          name: item.test.name,
+          code: item.test.code,
+          category: item.test.category,
+          status: item.status,
+          resultValue: item.resultValue,
+          unit: item.unit,
+          referenceRange: item.referenceRange,
+          interpretation: item.interpretation,
+        })),
+        resultData: result.resultData,
+        reportFileUrl: result.fileUrl,
+        reportFileType: result.fileType,
+        status: result.status.toUpperCase(),
+        doctorName: result.labOrder.doctor
+          ? `Dr. ${result.labOrder.doctor.firstName} ${result.labOrder.doctor.lastName}`
+          : 'N/A',
+        notes: result.notes,
+      }));
+
+      res.json({
+        success: true,
+        data: transformedResults,
+      });
+    } catch (error) {
+      console.error('[Get Lab Results] Error:', error);
+      next(error);
+    }
+  }
+);
+
+// @route   GET /api/lab/tests/catalog
+// @desc    Get lab test catalog (public for doctors/patients)
+// @access  Private
+router.get('/tests/catalog', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { category, search } = req.query;
+    const hospitalId = req.user!.hospitalId;
+
+    const whereClause: any = { hospitalId, isActive: true };
+
+    if (category && category !== 'all') {
+      whereClause.category = category;
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search as string, mode: 'insensitive' } },
+        { code: { contains: search as string, mode: 'insensitive' } },
+      ];
+    }
+
+    const tests = await prisma.labTest.findMany({
+      where: whereClause,
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    });
+
+    const transformedTests = tests.map(test => ({
+      id: test.id,
+      code: test.code,
+      name: test.name,
+      category: test.category,
+      price: Number(test.price),
+      turnaroundHours: test.turnaroundHours,
+      description: test.description,
+      parameters: test.parameters,
+    }));
+
+    res.json({
+      success: true,
+      data: transformedTests,
+    });
+  } catch (error) {
+    console.error('[Lab Test Catalog] Error:', error);
     next(error);
   }
 });
