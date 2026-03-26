@@ -79,6 +79,18 @@ export default function Inventory() {
 
   const [restockQuantity, setRestockQuantity] = useState('');
 
+  // Custom medicine state for Add Stock
+  const [showAddMedicineForm, setShowAddMedicineForm] = useState(false);
+  const [newMedicine, setNewMedicine] = useState({
+    name: '',
+    genericName: '',
+    category: 'tablet',
+    unit: 'tablet',
+    price: '',
+    brand: '',
+    strength: '',
+  });
+
   useEffect(() => {
     // Check URL params for filters
     const filter = searchParams.get('filter');
@@ -134,37 +146,64 @@ export default function Inventory() {
 
   const handleAddInventory = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate numeric inputs before parsing
     const quantity = parseInt(formData.quantity, 10);
     const purchasePrice = parseFloat(formData.purchasePrice);
     const mrp = parseFloat(formData.mrp);
     const reorderLevel = parseInt(formData.reorderLevel, 10);
-    
-    if (!formData.medicineId || !formData.batchNumber || !formData.expiryDate) {
+
+    // Validate medicine selection
+    if (!showAddMedicineForm && !formData.medicineId) {
+      alert('Please select a medicine or add a new one');
+      return;
+    }
+
+    if (showAddMedicineForm && (!newMedicine.name.trim() || !newMedicine.price)) {
+      alert('Please enter at least the medicine name and price');
+      return;
+    }
+
+    if (!formData.batchNumber || !formData.expiryDate) {
       alert('Please fill in all required fields');
       return;
     }
-    
+
     if (isNaN(quantity) || quantity <= 0) {
       alert('Please enter a valid quantity');
       return;
     }
-    
+
     if (isNaN(purchasePrice) || purchasePrice < 0) {
       alert('Please enter a valid purchase price');
       return;
     }
-    
+
     if (isNaN(mrp) || mrp <= 0) {
       alert('Please enter a valid MRP');
       return;
     }
-    
+
     setSubmitting(true);
     try {
+      let medicineId = formData.medicineId;
+
+      // If adding a new medicine, create it first
+      if (showAddMedicineForm) {
+        const medResponse = await pharmacyAPI.createMedicine({
+          name: newMedicine.name.trim(),
+          genericName: newMedicine.genericName.trim() || undefined,
+          category: newMedicine.category,
+          unit: newMedicine.unit,
+          price: parseFloat(newMedicine.price),
+          brand: newMedicine.brand.trim() || undefined,
+          strength: newMedicine.strength.trim() || undefined,
+        });
+        medicineId = (medResponse as any).data?.id || (medResponse as any).id;
+      }
+
       await pharmacyAPI.addInventory({
-        medicineId: formData.medicineId,
+        medicineId,
         batchNumber: formData.batchNumber,
         quantity,
         expiryDate: formData.expiryDate,
@@ -174,8 +213,9 @@ export default function Inventory() {
         location: formData.location || undefined,
         reorderLevel: isNaN(reorderLevel) ? 10 : reorderLevel,
       });
-      
+
       setShowAddModal(false);
+      setShowAddMedicineForm(false);
       setFormData({
         medicineId: '',
         batchNumber: '',
@@ -187,10 +227,12 @@ export default function Inventory() {
         location: '',
         reorderLevel: '10',
       });
+      setNewMedicine({ name: '', genericName: '', category: 'tablet', unit: 'tablet', price: '', brand: '', strength: '' });
       fetchData();
     } catch (error: any) {
       console.error('Error adding inventory:', error);
-      alert(error.response?.data?.message || 'Failed to add inventory');
+      const msg = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Failed to add inventory';
+      alert(msg);
     } finally {
       setSubmitting(false);
     }
@@ -615,7 +657,7 @@ export default function Inventory() {
             <div className="p-4 border-b border-secondary-200 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-secondary-900">Add Stock</h2>
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => { setShowAddModal(false); setShowAddMedicineForm(false); }}
                 className="p-1 hover:bg-secondary-100 rounded-lg"
               >
                 <X className="w-5 h-5" />
@@ -624,19 +666,119 @@ export default function Inventory() {
             <form onSubmit={handleAddInventory} className="p-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-1">Medicine *</label>
-                <select
-                  value={formData.medicineId}
-                  onChange={(e) => setFormData({ ...formData, medicineId: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                >
-                  <option value="">Select Medicine</option>
-                  {medicines.map((med) => (
-                    <option key={med.id} value={med.id}>
-                      {med.name} ({med.genericName || med.category})
-                    </option>
-                  ))}
-                </select>
+                {!showAddMedicineForm ? (
+                  <>
+                    <select
+                      value={formData.medicineId}
+                      onChange={(e) => setFormData({ ...formData, medicineId: e.target.value })}
+                      required={!showAddMedicineForm}
+                      className="w-full px-3 py-2 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    >
+                      <option value="">Select Medicine</option>
+                      {medicines.map((med) => (
+                        <option key={med.id} value={med.id}>
+                          {med.name} ({med.genericName || med.category})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddMedicineForm(true); setFormData({ ...formData, medicineId: '' }); }}
+                      className="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                    >
+                      + Add New Medicine
+                    </button>
+                  </>
+                ) : (
+                  <div className="space-y-3 p-3 border border-primary-200 bg-primary-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-primary-700">New Medicine Details</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddMedicineForm(false);
+                          setNewMedicine({ name: '', genericName: '', category: 'tablet', unit: 'tablet', price: '', brand: '', strength: '' });
+                        }}
+                        className="text-xs text-secondary-500 hover:text-secondary-700"
+                      >
+                        Cancel — Use Existing
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Medicine Name *"
+                      value={newMedicine.name}
+                      onChange={(e) => setNewMedicine({ ...newMedicine, name: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Generic Name"
+                      value={newMedicine.genericName}
+                      onChange={(e) => setNewMedicine({ ...newMedicine, genericName: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={newMedicine.category}
+                        onChange={(e) => setNewMedicine({ ...newMedicine, category: e.target.value })}
+                        className="px-3 py-2 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm"
+                      >
+                        <option value="tablet">Tablet</option>
+                        <option value="capsule">Capsule</option>
+                        <option value="syrup">Syrup</option>
+                        <option value="injection">Injection</option>
+                        <option value="ointment">Ointment</option>
+                        <option value="drops">Drops</option>
+                        <option value="inhaler">Inhaler</option>
+                        <option value="powder">Powder</option>
+                        <option value="cream">Cream</option>
+                        <option value="gel">Gel</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <select
+                        value={newMedicine.unit}
+                        onChange={(e) => setNewMedicine({ ...newMedicine, unit: e.target.value })}
+                        className="px-3 py-2 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm"
+                      >
+                        <option value="tablet">Tablet</option>
+                        <option value="capsule">Capsule</option>
+                        <option value="ml">ml</option>
+                        <option value="mg">mg</option>
+                        <option value="strip">Strip</option>
+                        <option value="bottle">Bottle</option>
+                        <option value="tube">Tube</option>
+                        <option value="vial">Vial</option>
+                        <option value="piece">Piece</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Selling Price *"
+                        value={newMedicine.price}
+                        onChange={(e) => setNewMedicine({ ...newMedicine, price: e.target.value })}
+                        className="px-3 py-2 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Strength (e.g. 500mg)"
+                        value={newMedicine.strength}
+                        onChange={(e) => setNewMedicine({ ...newMedicine, strength: e.target.value })}
+                        className="px-3 py-2 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Brand (optional)"
+                      value={newMedicine.brand}
+                      onChange={(e) => setNewMedicine({ ...newMedicine, brand: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm"
+                    />
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

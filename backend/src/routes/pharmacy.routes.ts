@@ -187,6 +187,50 @@ router.get('/patients/search', authenticate, authorize('PHARMACIST'), async (req
 });
 
 // ============================================
+// DOCTOR SEARCH (for manual billing)
+// ============================================
+
+// @route   GET /api/pharmacy/doctors/search
+// @desc    Search doctors for manual billing
+// @access  Private (Pharmacist)
+router.get('/doctors/search', authenticate, authorize('PHARMACIST'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { search } = req.query;
+    const hospitalId = req.user!.hospitalId;
+
+    const whereClause: any = {
+      hospitalId,
+      role: 'DOCTOR',
+      isActive: true,
+    };
+
+    if (search && (search as string).trim().length >= 2) {
+      whereClause.OR = [
+        { firstName: { contains: search as string, mode: 'insensitive' } },
+        { lastName: { contains: search as string, mode: 'insensitive' } },
+        { specialty: { contains: search as string, mode: 'insensitive' } },
+      ];
+    }
+
+    const doctors = await prisma.user.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        specialty: true,
+      },
+      take: 10,
+      orderBy: { firstName: 'asc' },
+    });
+
+    res.json({ success: true, data: doctors });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
 // PRESCRIPTION MANAGEMENT
 // ============================================
 
@@ -261,22 +305,31 @@ router.get('/prescriptions/pending', authenticate, authorize('PHARMACIST'), asyn
       prisma.prescription.count({ where: whereClause }),
     ]);
 
-    // Add stock availability info
+    // Add stock availability info for each prescription item
     const prescriptionsWithStock = await Promise.all(
       prescriptions.map(async (prescription) => {
         const itemsWithStock = await Promise.all(
           prescription.items.map(async (item) => {
-            const inventory = await prisma.inventory.findFirst({
+            // Check if any inventory batch has stock for this medicine
+            const inventoryBatches = await prisma.inventory.findMany({
               where: {
                 medicineId: item.medicineId,
-                quantity: { gte: item.quantity },
+                hospitalId,
+                quantity: { gt: 0 },
               },
               orderBy: { expiryDate: 'asc' },
             });
+            const totalAvailable = inventoryBatches.reduce((sum, inv) => sum + inv.quantity, 0);
+            // Use inventory MRP as price (most accurate), fall back to medicine.price
+            const bestBatch = inventoryBatches[0] || null;
+            const medicinePrice = Number(item.medicine.price) || 0;
+            const inventoryMRP = bestBatch?.mrp ? Number(bestBatch.mrp) : 0;
+            const unitPrice = inventoryMRP > 0 ? inventoryMRP : medicinePrice;
             return {
               ...item,
-              available: !!inventory,
-              unitPrice: item.medicine.price,
+              available: totalAvailable >= item.quantity,
+              availableQuantity: totalAvailable,
+              unitPrice,
             };
           })
         );
@@ -289,12 +342,14 @@ router.get('/prescriptions/pending', authenticate, authorize('PHARMACIST'), asyn
 
     res.json({
       success: true,
-      data: prescriptionsWithStock,
-      pagination: {
-        total,
-        page: Number(page),
-        limit: Number(limit),
-        pages: Math.ceil(total / Number(limit)),
+      data: {
+        prescriptions: prescriptionsWithStock,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          pages: Math.ceil(total / Number(limit)),
+        },
       },
     });
   } catch (error) {
@@ -364,12 +419,18 @@ router.get('/prescriptions/:id', authenticate, authorize('PHARMACIST'), async (r
       const availableBatches = item.medicine.inventory.filter(
         (inv) => inv.quantity >= item.quantity
       );
+      const suggestedBatch = availableBatches[0] || item.medicine.inventory[0] || null;
+      // Use inventory MRP as price (most accurate), fall back to medicine.price
+      const medicinePrice = Number(item.medicine.price) || 0;
+      const inventoryMRP = suggestedBatch?.mrp ? Number(suggestedBatch.mrp) : 0;
+      const unitPrice = inventoryMRP > 0 ? inventoryMRP : medicinePrice;
+
       return {
         ...item,
         available: availableBatches.length > 0,
         availableQuantity: item.medicine.inventory.reduce((sum, inv) => sum + inv.quantity, 0),
-        unitPrice: item.medicine.price,
-        suggestedBatch: availableBatches[0] || item.medicine.inventory[0] || null,
+        unitPrice,
+        suggestedBatch,
       };
     });
 
@@ -889,11 +950,13 @@ router.post(
     try {
       const hospitalId = req.user!.hospitalId;
       const pharmacistId = req.user!.id;
-      const { prescriptionId, patientId, items, paymentMethod, discount = 0, notes } = req.body;
+      const { prescriptionId, patientId, items, paymentMethod, discount = 0, notes, doctorId } = req.body;
 
       // Start transaction
       const result = await prisma.$transaction(async (tx) => {
         let subtotal = 0;
+        let totalCgst = 0;
+        let totalSgst = 0;
         const dispenseItems: any[] = [];
         const billItems: any[] = [];
         const stockUpdates: any[] = [];
@@ -919,9 +982,19 @@ router.post(
           }
 
           const inventoryItem = medicine.inventory[0];
-          const unitPrice = item.unitPrice || medicine.price.toNumber();
+          // Priority: frontend-provided price > inventory MRP > medicine base price
+          const inventoryMRP = inventoryItem.mrp ? Number(inventoryItem.mrp) : 0;
+          const medicineBasePrice = Number(medicine.price) || 0;
+          const unitPrice = item.unitPrice || (inventoryMRP > 0 ? inventoryMRP : medicineBasePrice);
           const itemTotal = unitPrice * item.quantity;
           subtotal += itemTotal;
+
+          // Per-medicine GST calculation (CGST + SGST split)
+          const gstPercent = medicine.gstPercentage ? Number(medicine.gstPercentage) : 5;
+          const itemCgst = itemTotal * (gstPercent / 2) / 100;
+          const itemSgst = itemTotal * (gstPercent / 2) / 100;
+          totalCgst += itemCgst;
+          totalSgst += itemSgst;
 
           dispenseItems.push({
             medicineId: item.medicineId,
@@ -943,6 +1016,10 @@ router.post(
             totalPrice: itemTotal,
             batchNumber: inventoryItem.batchNumber,
             expiryDate: inventoryItem.expiryDate,
+            mrp: inventoryItem.mrp ? Number(inventoryItem.mrp) : unitPrice,
+            gstPercentage: gstPercent,
+            cgst: itemCgst,
+            sgst: itemSgst,
           });
 
           stockUpdates.push({
@@ -952,8 +1029,8 @@ router.post(
           });
         }
 
-        // Calculate tax and totals
-        const tax = subtotal * 0.05; // 5% GST
+        // Calculate tax and totals (per-medicine GST, split as CGST + SGST)
+        const tax = Math.round((totalCgst + totalSgst) * 100) / 100;
         const finalAmount = subtotal + tax - discount;
 
         // Generate numbers
@@ -1065,7 +1142,7 @@ router.post(
           }
         }
 
-        return { dispense, bill, dispenseNumber, billNumber };
+        return { dispense, bill, dispenseNumber, billNumber, totalCgst, totalSgst, billItems };
       });
 
       // Notify patient that prescription was dispensed
@@ -1101,8 +1178,11 @@ router.post(
           billNumber: result.billNumber,
           subtotal: result.dispense.totalAmount,
           tax: result.dispense.tax,
+          cgst: Math.round(result.totalCgst * 100) / 100,
+          sgst: Math.round(result.totalSgst * 100) / 100,
           discount: result.dispense.discount,
           finalAmount: result.dispense.finalAmount,
+          items: result.billItems,
         },
       });
     } catch (error) {
@@ -1261,7 +1341,17 @@ router.get('/bills/:id/download', authenticate, authorize('PHARMACIST'), async (
             },
           },
         },
-        items: true,
+        items: {
+          include: {
+            medicine: {
+              select: {
+                gstPercentage: true,
+                category: true,
+                genericName: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -1274,11 +1364,27 @@ router.get('/bills/:id/download', authenticate, authorize('PHARMACIST'), async (
       where: { id: req.user!.hospitalId },
     });
 
+    // Enhance items with GST breakdown computed at read-time
+    const enhancedItems = bill.items.map((item: any) => {
+      const gstPercent = item.medicine?.gstPercentage ? Number(item.medicine.gstPercentage) : 5;
+      const taxableAmount = Number(item.totalPrice);
+      const cgst = Math.round(taxableAmount * (gstPercent / 2) / 100 * 100) / 100;
+      const sgst = Math.round(taxableAmount * (gstPercent / 2) / 100 * 100) / 100;
+      return {
+        ...item,
+        gstPercentage: gstPercent,
+        cgst,
+        sgst,
+        hsnCode: '3004', // Default HSN for pharmaceutical preparations
+        mrp: item.unitPrice, // Use unit price as MRP fallback
+      };
+    });
+
     // Return bill data for PDF generation on frontend
     res.json({
       success: true,
       data: {
-        bill,
+        bill: { ...bill, items: enhancedItems },
         hospital,
         generatedAt: new Date().toISOString(),
       },

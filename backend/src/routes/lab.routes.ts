@@ -178,6 +178,7 @@ router.get('/orders', authenticate, authorize('LAB_TECH'), async (req: Request, 
       orderedAt: order.createdAt.toISOString(),
       priority: order.priority.toUpperCase(),
       status: order.status.toUpperCase(),
+      sampleCollectedAt: order.sampleCollectedAt,
       tests: order.items.map(item => ({
         id: item.id,
         testId: item.testId,
@@ -613,29 +614,38 @@ router.post(
         });
 
         // Create DB notifications (matching Path B pattern for NotificationBell visibility)
+        // Wrap in try-catch to handle foreign key constraint errors gracefully
         if (order.patientId) {
-          await prisma.notification.create({
-            data: {
-              hospitalId,
-              userId: order.patientId,
-              type: 'LAB_RESULT_READY',
-              title: 'Lab Report Ready',
-              message: 'Your lab test results are now available.',
-              data: JSON.stringify({ orderId: id }),
-            },
-          });
+          try {
+            await prisma.notification.create({
+              data: {
+                hospitalId,
+                patientId: order.patientId, // Use patientId for patient notifications
+                type: 'LAB_RESULT_READY',
+                title: 'Lab Report Ready',
+                message: 'Your lab test results are now available.',
+                data: JSON.stringify({ orderId: id }),
+              },
+            });
+          } catch (notifError) {
+            console.error('[Submit Results] Failed to create patient notification:', notifError);
+          }
         }
         if (order.doctorId) {
-          await prisma.notification.create({
-            data: {
-              hospitalId,
-              userId: order.doctorId,
-              type: 'LAB_RESULT_READY',
-              title: 'Lab Result Available',
-              message: 'Lab results for your patient are available for review.',
-              data: JSON.stringify({ orderId: id, patientId: order.patientId }),
-            },
-          });
+          try {
+            await prisma.notification.create({
+              data: {
+                hospitalId,
+                userId: order.doctorId,
+                type: 'LAB_RESULT_READY',
+                title: 'Lab Result Available',
+                message: 'Lab results for your patient are available for review.',
+                data: JSON.stringify({ orderId: id, patientId: order.patientId }),
+              },
+            });
+          } catch (notifError) {
+            console.error('[Submit Results] Failed to create doctor notification:', notifError);
+          }
         }
 
         // Notify doctor and patient via socket

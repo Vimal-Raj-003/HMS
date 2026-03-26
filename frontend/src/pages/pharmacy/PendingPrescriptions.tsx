@@ -284,12 +284,38 @@ export default function PendingPrescriptions() {
 
                 {/* Expanded Content */}
                 {isExpanded && (
-                  <div className="border-t border-secondary-200 p-4 bg-secondary-50">
-                    {/* Patient Contact */}
-                    <div className="mb-4 p-3 bg-white rounded-lg">
-                      <p className="text-sm text-secondary-600">
-                        <span className="font-medium">Contact:</span> {prescription.patient.phone}
-                      </p>
+                  <div className="border-t border-secondary-200 p-4 bg-secondary-50 overflow-hidden">
+                    {/* Patient-Doctor Correlation Banner */}
+                    <div className="mb-4 p-3 bg-white rounded-lg border border-secondary-200">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-secondary-500 uppercase tracking-wide mb-1">Patient</p>
+                          <p className="font-semibold text-secondary-900">
+                            {prescription.patient.firstName} {prescription.patient.lastName}
+                          </p>
+                          <p className="text-sm text-secondary-600">
+                            {prescription.patient.patientNumber} | {calculateAge(prescription.patient.dateOfBirth)} yrs, {prescription.patient.gender}
+                          </p>
+                          {prescription.patient.phone && (
+                            <p className="text-sm text-secondary-600">Phone: {prescription.patient.phone}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-secondary-500 uppercase tracking-wide mb-1">Prescribed By</p>
+                          <p className="font-semibold text-secondary-900">
+                            Dr. {prescription.doctor.firstName} {prescription.doctor.lastName}
+                          </p>
+                          {prescription.doctor.specialty && (
+                            <p className="text-sm text-secondary-600">{prescription.doctor.specialty}</p>
+                          )}
+                          {prescription.consultation?.provisionalDiagnosis && (
+                            <p className="text-sm text-secondary-500 mt-1">Dx: {prescription.consultation.provisionalDiagnosis}</p>
+                          )}
+                          <p className="text-xs text-secondary-400 mt-1">
+                            Rx: {prescription.prescriptionNumber || prescription.id.slice(0, 8)} | {new Date(prescription.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Medicines List */}
@@ -327,13 +353,13 @@ export default function PendingPrescriptions() {
                               </p>
                               <div className="flex items-center gap-4 mt-1 text-xs text-secondary-500">
                                 <span>Qty: {item.quantity}</span>
-                                <span>₹{item.unitPrice.toFixed(2)}/unit</span>
+                                <span>₹{Number(item.unitPrice || 0).toFixed(2)}/unit</span>
                                 {item.instructions && <span>Note: {item.instructions}</span>}
                               </div>
                             </div>
                             <div className="text-right">
                               <p className="font-medium text-secondary-900">
-                                ₹{(item.unitPrice * item.quantity).toFixed(2)}
+                                ₹{(Number(item.unitPrice || 0) * item.quantity).toFixed(2)}
                               </p>
                             </div>
                           </div>
@@ -348,7 +374,7 @@ export default function PendingPrescriptions() {
                           Estimated Total
                         </p>
                         <p className="text-xl font-bold text-secondary-900">
-                          ₹{prescription.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0).toFixed(2)}
+                          ₹{prescription.items.reduce((sum, item) => sum + (Number(item.unitPrice || 0) * item.quantity), 0).toFixed(2)}
                         </p>
                       </div>
                       <div className="flex gap-3">

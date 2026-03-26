@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../config/database';
 import { ApiError } from '../middleware/error.middleware';
+import { sendOTP } from './sms.service';
 
 interface RegisterInput {
   hospitalId: string;
@@ -353,18 +354,22 @@ export class AuthService {
       },
     });
 
-    // In production, send OTP via SMS service (Twilio, MSG91, etc.)
-    // For development, we return the OTP in response
+    // Log OTP to console in development mode
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`\n========================================`);
+      console.log(`📱 OTP for ${mobile}: ${otp}`);
+      console.log(`⏳ Expires at: ${expiresAt.toLocaleTimeString()}`);
+      console.log(`========================================\n`);
+    }
+
+    // Send OTP via SMS provider
+    const smsSent = await sendOTP(mobile, otp);
+
     const isDevelopment = process.env.NODE_ENV !== 'production';
 
-    // TODO: Integrate with SMS service
-    // await this.sendSms(mobile, `Your OTP for HMS login is ${otp}. Valid for 5 minutes.`);
-
-    console.log(`[OTP] Sent to ${mobile}: ${otp}`); // For development logging
-
     return {
-      message: 'OTP sent successfully',
-      ...(isDevelopment && { otp }), // Include OTP in development mode
+      message: smsSent ? 'OTP sent successfully' : 'OTP generated (SMS delivery pending)',
+      ...(isDevelopment && { otp }), // Include OTP in development mode for testing
     };
   }
 

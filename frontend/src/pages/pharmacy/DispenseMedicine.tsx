@@ -10,9 +10,11 @@ import {
   ShoppingCart,
   CreditCard,
   ArrowLeft,
-  Package
+  Package,
+  Printer
 } from 'lucide-react';
 import { pharmacyAPI } from '../../lib/api';
+import { printBill } from '../../lib/printBill';
 
 interface MedicineItem {
   id: string;
@@ -271,6 +273,13 @@ export default function DispenseMedicine() {
               className="flex-1 btn-secondary"
             >
               View Bills
+            </button>
+            <button
+              onClick={() => printBill(billData.billId)}
+              className="flex-1 btn-secondary inline-flex items-center justify-center gap-2"
+            >
+              <Printer className="w-4 h-4" />
+              Print Bill
             </button>
             <button
               onClick={() => navigate('/pharmacy/prescriptions')}

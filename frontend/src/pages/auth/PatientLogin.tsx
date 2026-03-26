@@ -44,15 +44,36 @@ export default function PatientLogin() {
     }, 1000);
   };
 
+  // Normalize phone: strip +91, 91, 0 prefix → always 10 digits
+  const normalizePhone = (phone: string): string => {
+    const cleaned = phone.replace(/[\s\-()]/g, '');
+    if (cleaned.startsWith('+91') && cleaned.length === 13) return cleaned.slice(3);
+    if (cleaned.startsWith('91') && cleaned.length === 12) return cleaned.slice(2);
+    if (cleaned.startsWith('0') && cleaned.length === 11) return cleaned.slice(1);
+    return cleaned;
+  };
+
   const onSendOTP = async (data: OTPForm) => {
+    const mobile = normalizePhone(data.mobileNumber);
+    if (!/^[0-9]{10}$/.test(mobile)) {
+      toast.error('Please enter a valid 10-digit mobile number');
+      return;
+    }
     setIsLoading(true);
     try {
-      await authAPI.sendOTP(data.mobileNumber);
-      setMobileNumber(data.mobileNumber);
-      otpForm.setValue('mobileNumber', data.mobileNumber);
+      const response = await authAPI.sendOTP(mobile);
+      const responseData = response.data as any;
+      setMobileNumber(mobile);
+      otpForm.setValue('mobileNumber', mobile);
       setStep('otp');
       startResendTimer();
-      toast.success('OTP sent successfully!');
+
+      // Show OTP in toast if returned by backend (development mode)
+      if (responseData?.otp) {
+        toast.success(`OTP: ${responseData.otp}`, { duration: 10000 });
+      } else {
+        toast.success('OTP sent to your mobile number!');
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to send OTP');
     } finally {
@@ -87,9 +108,15 @@ export default function PatientLogin() {
     if (resendTimer > 0) return;
     setIsLoading(true);
     try {
-      await authAPI.resendOTP(mobileNumber);
+      const response = await authAPI.resendOTP(mobileNumber);
+      const responseData = response.data as any;
       startResendTimer();
-      toast.success('OTP resent successfully!');
+
+      if (responseData?.otp) {
+        toast.success(`OTP: ${responseData.otp}`, { duration: 10000 });
+      } else {
+        toast.success('OTP resent to your mobile number!');
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to resend OTP');
     } finally {
@@ -425,9 +452,14 @@ export default function PatientLogin() {
                         type="tel"
                         {...phoneForm.register('mobileNumber', {
                           required: 'Mobile number is required',
-                          pattern: {
-                            value: /^[0-9]{10}$/,
-                            message: 'Enter a valid 10-digit mobile number',
+                          validate: (value) => {
+                            const cleaned = value.replace(/[\s\-()]/g, '');
+                            // Accept: 10 digits, or with +91/91/0 prefix
+                            if (/^[0-9]{10}$/.test(cleaned)) return true;
+                            if (/^\+91[0-9]{10}$/.test(cleaned)) return true;
+                            if (/^91[0-9]{10}$/.test(cleaned)) return true;
+                            if (/^0[0-9]{10}$/.test(cleaned)) return true;
+                            return 'Enter a valid 10-digit mobile number';
                           },
                         })}
                         className="w-full pl-12 pr-4 py-3.5 rounded-r-xl text-sm transition-all duration-200 focus:outline-none"
@@ -437,7 +469,7 @@ export default function PatientLogin() {
                           color: '#0F172A',
                         }}
                         placeholder="9876543210"
-                        maxLength={10}
+                        maxLength={13}
                         onFocus={(e) => {
                           e.target.style.backgroundColor = '#FFFFFF';
                           e.target.style.borderColor = '#14B8A6';

@@ -33,10 +33,12 @@ import AdminSettings from './pages/admin/Settings';
 import PatientQueue from './pages/doctor/PatientQueue';
 import Consultation from './pages/doctor/Consultation';
 import DoctorSchedule from './pages/doctor/Schedule';
+import DoctorSettings from './pages/doctor/Settings';
 
 // Nurse Pages
 import RecordVitals from './pages/nurse/RecordVitals';
 import PatientSearch from './pages/nurse/PatientSearch';
+import NurseSettings from './pages/nurse/Settings';
 
 // Pharmacy Pages
 import PendingPrescriptions from './pages/pharmacy/PendingPrescriptions';
@@ -47,11 +49,15 @@ import Bills from './pages/pharmacy/Bills';
 import Expenses from './pages/pharmacy/Expenses';
 import PharmacyReports from './pages/pharmacy/Reports';
 
+// Pharmacy Pages - Settings
+import PharmacySettings from './pages/pharmacy/Settings';
+
 // Lab Pages
 import LabOrders from './pages/lab/LabOrders';
 import SampleCollection from './pages/lab/SampleCollection';
 import EnterResults from './pages/lab/EnterResults';
 import TestCatalog from './pages/lab/TestCatalog';
+import LabSettings from './pages/lab/Settings';
 
 // Patient Pages
 import BookAppointment from './pages/patient/BookAppointment';
@@ -60,6 +66,7 @@ import LabReports from './pages/patient/LabReports';
 import MyPrescriptions from './pages/patient/MyPrescriptions';
 import ProfileSetup from './pages/patient/ProfileSetup';
 import PatientProfile from './pages/patient/Profile';
+import PatientSettings from './pages/patient/Settings';
 
 function App() {
   const { user, isAuthenticated, isLoading } = useAuthStore();
@@ -225,6 +232,7 @@ function App() {
         <Route path="consultation" element={<Consultation />} />
         <Route path="consultation/:patientId" element={<Consultation />} />
         <Route path="schedule" element={<DoctorSchedule />} />
+        <Route path="settings" element={<DoctorSettings />} />
       </Route>
 
       {/* Nurse Routes */}
@@ -241,6 +249,7 @@ function App() {
         <Route path="search" element={<PatientSearch />} />
         <Route path="vitals" element={<RecordVitals />} />
         <Route path="vitals/:patientId" element={<RecordVitals />} />
+        <Route path="settings" element={<NurseSettings />} />
       </Route>
 
       {/* Pharmacy Routes */}
@@ -261,6 +270,7 @@ function App() {
         <Route path="bills" element={<Bills />} />
         <Route path="expenses" element={<Expenses />} />
         <Route path="reports" element={<PharmacyReports />} />
+        <Route path="settings" element={<PharmacySettings />} />
       </Route>
 
       {/* Lab Routes */}
@@ -275,9 +285,12 @@ function App() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<LabDashboard />} />
         <Route path="orders" element={<LabOrders />} />
+        <Route path="sample" element={<SampleCollection />} />
         <Route path="sample/:orderId" element={<SampleCollection />} />
+        <Route path="results" element={<EnterResults />} />
         <Route path="results/:orderId" element={<EnterResults />} />
         <Route path="catalog" element={<TestCatalog />} />
+        <Route path="settings" element={<LabSettings />} />
       </Route>
 
       {/* Patient Routes */}
@@ -297,6 +310,7 @@ function App() {
         <Route path="records" element={<MedicalRecords />} />
         <Route path="lab-reports" element={<LabReports />} />
         <Route path="prescriptions" element={<MyPrescriptions />} />
+        <Route path="settings" element={<PatientSettings />} />
       </Route>
 
       {/* Redirect authenticated users to their dashboard */}

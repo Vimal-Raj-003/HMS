@@ -20,6 +20,9 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import CollapsibleCard from '../../components/ui/CollapsibleCard';
+import ChangePasswordForm from '../../components/ui/ChangePasswordForm';
+import SecurityInfoCard from '../../components/ui/SecurityInfoCard';
+import { useAuthStore } from '../../store/auth.store';
 
 const rolePermissions = [
   {
@@ -111,6 +114,19 @@ const rolePermissions = [
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
+  const { user } = useAuthStore();
+
+  const isAdmin = user?.role === 'ADMIN';
+
+  // Receptionist only sees Change Password + Security Info
+  if (!isAdmin) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <ChangePasswordForm />
+        <SecurityInfoCard />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -350,6 +366,12 @@ export default function SettingsPage() {
           })}
         </div>
       </CollapsibleCard>
+
+      {/* Change Password */}
+      <ChangePasswordForm />
+
+      {/* Security Info */}
+      <SecurityInfoCard />
     </div>
   );
 }

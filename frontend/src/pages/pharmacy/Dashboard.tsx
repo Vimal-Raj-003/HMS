@@ -92,17 +92,20 @@ export default function PharmacyDashboard() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-5">
-      {/* Quick Actions */}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Link to="/pharmacy/inventory" className="btn-secondary inline-flex items-center gap-2">
-          <Package className="w-4 h-4" />
-          Manage Inventory
-        </Link>
-        <Link to="/pharmacy/prescriptions" className="btn-primary inline-flex items-center gap-2">
-          <FileText className="w-4 h-4" />
-          View Prescriptions
-        </Link>
+    <div className="space-y-3">
+      {/* Header with Quick Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Pharmacy Dashboard</h1>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/pharmacy/inventory" className="btn-secondary inline-flex items-center gap-2">
+            <Package className="w-4 h-4" />
+            Manage Inventory
+          </Link>
+          <Link to="/pharmacy/prescriptions" className="btn-primary inline-flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            View Prescriptions
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -140,16 +143,16 @@ export default function PharmacyDashboard() {
         />
       </div>
 
-      {/* Alerts Banner */}
+      {/* Alerts Banner with Action Buttons */}
       {(stats?.lowStockItems || 0) > 0 || (stats?.expiringItems || 0) > 0 ? (
-        <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-red-100 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-red-800 dark:text-red-300">Attention Required</h3>
-              <div className="mt-2 text-sm text-red-700 dark:text-red-400 space-y-1">
+              <div className="mt-1 text-sm text-red-700 dark:text-red-400 space-y-0.5">
                 {(stats?.lowStockItems || 0) > 0 && (
                   <p>• {stats?.lowStockItems} items are below reorder level</p>
                 )}
@@ -157,24 +160,34 @@ export default function PharmacyDashboard() {
                   <p>• {stats?.expiringItems} items are expiring within 60 days</p>
                 )}
               </div>
-              <Link 
-                to="/pharmacy/inventory?filter=alerts" 
-                className="btn-secondary btn-sm mt-3 inline-flex items-center gap-2"
-              >
-                View All Alerts
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Link
+                  to="/pharmacy/inventory?filter=alerts"
+                  className="btn-secondary btn-sm inline-flex items-center gap-1.5"
+                >
+                  View All Alerts
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+                <Link to="/pharmacy/inventory" className="btn-secondary btn-sm inline-flex items-center gap-1.5">
+                  <Package className="w-3.5 h-3.5" />
+                  Manage Inventory
+                </Link>
+                <Link to="/pharmacy/prescriptions" className="btn-secondary btn-sm inline-flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" />
+                  View Prescriptions
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       ) : null}
 
       {/* Monthly Summary */}
-      <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-4 text-white">
+      <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-3 text-white">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-primary-100 text-sm">Monthly Sales</p>
-            <p className="text-3xl font-bold">{formatCurrency(stats?.monthlySales || 0)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(stats?.monthlySales || 0)}</p>
           </div>
           <div className="p-3 bg-white/20 rounded-xl">
             <TrendingUp className="w-8 h-8" />
@@ -190,7 +203,7 @@ export default function PharmacyDashboard() {
           subtitle="Latest pharmacy sales"
           icon={<IndianRupee className="w-5 h-5 text-green-600" />}
           iconBgColor="bg-green-100"
-          defaultCollapsed={true}
+          defaultCollapsed={false}
           collapsedContent={
             <div className="space-y-2">
               {stats?.recentTransactions && stats.recentTransactions.length > 0 ? (
@@ -240,7 +253,7 @@ export default function PharmacyDashboard() {
           subtitle="Frequently used operations"
           icon={<Pill className="w-5 h-5 text-primary-600" />}
           iconBgColor="bg-primary-100"
-          defaultCollapsed={true}
+          defaultCollapsed={false}
           collapsedContent={
             <div className="flex flex-wrap items-center gap-2">
               <Link
@@ -368,7 +381,7 @@ export default function PharmacyDashboard() {
         subtitle="Last 30 days performance"
         icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
         iconBgColor="bg-blue-100"
-        defaultCollapsed={true}
+        defaultCollapsed={false}
         collapsedContent={
           <div className="space-y-2">
             {stats?.topSellingMedicines && stats.topSellingMedicines.length > 0 ? (

@@ -46,11 +46,13 @@ const navigation = {
     { name: 'Dashboard', path: '/doctor/dashboard', icon: Home },
     { name: 'Consultation', path: '/doctor/consultation', icon: Stethoscope },
     { name: 'Schedule', path: '/doctor/schedule', icon: Calendar },
+    { name: 'Settings', path: '/doctor/settings', icon: Settings },
   ],
   NURSE: [
     { name: 'Dashboard', path: '/nurse/dashboard', icon: Home },
     { name: 'Patient Search', path: '/nurse/search', icon: Search },
     { name: 'Record Vitals', path: '/nurse/vitals', icon: Activity },
+    { name: 'Settings', path: '/nurse/settings', icon: Settings },
   ],
   PHARMACIST: [
     { name: 'Dashboard', path: '/pharmacy/dashboard', icon: Home },
@@ -60,12 +62,11 @@ const navigation = {
     { name: 'Bills', path: '/pharmacy/bills', icon: CreditCard },
     { name: 'Expenses', path: '/pharmacy/expenses', icon: FileText },
     { name: 'Reports', path: '/pharmacy/reports', icon: BarChart3 },
+    { name: 'Settings', path: '/pharmacy/settings', icon: Settings },
   ],
   LAB_TECH: [
     { name: 'Dashboard', path: '/lab/dashboard', icon: Home },
     { name: 'Orders', path: '/lab/orders', icon: FlaskConical },
-    { name: 'Sample Collection', path: '/lab/samples', icon: TestTube },
-    { name: 'Test Catalog', path: '/lab/catalog', icon: FileText },
     { name: 'Settings', path: '/lab/settings', icon: Settings },
   ],
   PATIENT: [
@@ -75,6 +76,7 @@ const navigation = {
     { name: 'Lab Reports', path: '/patient/lab-reports', icon: FlaskConical },
     { name: 'Prescriptions', path: '/patient/prescriptions', icon: Pill },
     { name: 'Profile', path: '/patient/profile', icon: User },
+    { name: 'Settings', path: '/patient/settings', icon: Settings },
   ],
   RECEPTIONIST: [
     { name: 'Dashboard', path: '/admin/dashboard', icon: Home },
@@ -82,7 +84,22 @@ const navigation = {
     { name: 'Appointments', path: '/admin/appointments', icon: Calendar },
     { name: 'Queue', path: '/admin/queue', icon: Activity },
     { name: 'Billing', path: '/admin/billing', icon: CreditCard },
+    { name: 'Settings', path: '/admin/settings', icon: Settings },
   ],
+};
+
+// Map role to correct route prefix
+const getRoleBasePath = (role: string): string => {
+  switch (role) {
+    case 'ADMIN': return '/admin';
+    case 'DOCTOR': return '/doctor';
+    case 'NURSE': return '/nurse';
+    case 'PHARMACIST': return '/pharmacy';
+    case 'LAB_TECH': return '/lab';
+    case 'RECEPTIONIST': return '/admin';
+    case 'PATIENT': return '/patient';
+    default: return '/';
+  }
 };
 
 // Role display names and colors - Futuristic badge styling
@@ -409,7 +426,7 @@ export default function DashboardLayout() {
                   {/* Menu Items */}
                   <div className="py-1">
                     <Link
-                      to={user?.role === 'PATIENT' ? '/patient/profile' : `/${user?.role?.toLowerCase()}/settings`}
+                      to={user?.role === 'PATIENT' ? '/patient/profile' : `${getRoleBasePath(user?.role || '')}/settings`}
                       onClick={() => setUserDropdownOpen(false)}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150"
                       style={{ color: 'var(--color-text-secondary)' }}
@@ -419,19 +436,17 @@ export default function DashboardLayout() {
                       <User className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
                       <span>My Profile</span>
                     </Link>
-                    {user?.role !== 'PATIENT' && (
-                      <Link
-                        to={`/${user?.role?.toLowerCase()}/settings`}
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150"
-                        style={{ color: 'var(--color-text-secondary)' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-search-bg)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        <Settings className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
-                        <span>Settings</span>
-                      </Link>
-                    )}
+                    <Link
+                      to={`${getRoleBasePath(user?.role || '')}/settings`}
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150"
+                      style={{ color: 'var(--color-text-secondary)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-search-bg)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <Settings className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
+                      <span>Settings</span>
+                    </Link>
                   </div>
 
                   {/* Logout */}

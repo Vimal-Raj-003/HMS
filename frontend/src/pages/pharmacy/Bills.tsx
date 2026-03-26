@@ -7,6 +7,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { pharmacyAPI } from '../../lib/api';
+import { printBill } from '../../lib/printBill';
 
 interface BillItem {
   id: string;
@@ -150,122 +151,8 @@ export default function PharmacyBills() {
     }
   };
 
-  // HTML escape function to prevent XSS attacks
-  const escapeHtml = (str: string | null | undefined): string => {
-    if (str == null) return '';
-    const htmlEntities: Record<string, string> = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    };
-    return String(str).replace(/[&<>"']/g, char => htmlEntities[char]);
-  };
-
   const handleDownload = async (billId: string) => {
-    try {
-      const response = await pharmacyAPI.getBillForDownload(billId);
-      // The axios interceptor unwraps response.data from { success, data: {...} } to just the inner data
-      const data = response.data as any;
-      
-      // Create a printable bill
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Bill - ${escapeHtml(data.bill.billNumber)}</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
-              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-              .hospital-name { font-size: 24px; font-weight: bold; }
-              .hospital-address { color: #666; margin-top: 5px; }
-              .bill-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
-              .section { margin-bottom: 20px; }
-              .section-title { font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-              th { background: #f5f5f5; }
-              .totals { margin-top: 20px; text-align: right; }
-              .totals div { margin: 5px 0; }
-              .grand-total { font-size: 18px; font-weight: bold; border-top: 2px solid #333; padding-top: 10px; }
-              .footer { margin-top: 40px; text-align: center; color: #666; font-size: 12px; }
-              @media print { body { padding: 0; } }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <div class="hospital-name">${escapeHtml(data.hospital?.name) || 'Hospital'}</div>
-              <div class="hospital-address">${escapeHtml(data.hospital?.address) || ''}</div>
-            </div>
-            
-            <div class="bill-info">
-              <div>
-                <strong>Bill Number:</strong> ${escapeHtml(data.bill.billNumber)}<br>
-                <strong>Date:</strong> ${formatDate(data.bill.createdAt)}
-              </div>
-              <div>
-                <strong>Patient:</strong> ${escapeHtml(data.bill.patient.firstName)} ${escapeHtml(data.bill.patient.lastName)}<br>
-                <strong>Patient ID:</strong> ${escapeHtml(data.bill.patient.patientNumber)}
-              </div>
-            </div>
-            
-            ${data.bill.prescription?.doctor ? `
-            <div class="section">
-              <div class="section-title">Doctor</div>
-              Dr. ${escapeHtml(data.bill.prescription.doctor.firstName)} ${escapeHtml(data.bill.prescription.doctor.lastName)}
-              ${data.bill.prescription.doctor.specialty ? ` (${escapeHtml(data.bill.prescription.doctor.specialty)})` : ''}
-            </div>
-            ` : ''}
-            
-            <div class="section">
-              <div class="section-title">Medicines</div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Medicine</th>
-                    <th>Qty</th>
-                    <th>Unit Price</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${data.bill.items.map((item: any) => `
-                    <tr>
-                      <td>${escapeHtml(item.medicineName)}</td>
-                      <td>${item.quantity}</td>
-                      <td>${formatCurrency(item.unitPrice)}</td>
-                      <td>${formatCurrency(item.totalPrice)}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-            
-            <div class="totals">
-              <div>Subtotal: ${formatCurrency(data.bill.subtotal)}</div>
-              <div>Tax (5% GST): ${formatCurrency(data.bill.tax)}</div>
-              ${data.bill.discount > 0 ? `<div>Discount: -${formatCurrency(data.bill.discount)}</div>` : ''}
-              <div class="grand-total">Grand Total: ${formatCurrency(data.bill.totalAmount)}</div>
-            </div>
-            
-            <div class="footer">
-              <p>Thank you for your visit!</p>
-              <p>Payment Method: ${escapeHtml(data.bill.paymentMethod.toUpperCase())}</p>
-            </div>
-            
-            <script>window.print();</script>
-          </body>
-          </html>
-        `);
-        printWindow.document.close();
-      }
-    } catch (error) {
-      console.error('Error downloading bill:', error);
-      alert('Failed to generate bill');
-    }
+    await printBill(billId);
   };
 
   if (loading) {
@@ -392,8 +279,8 @@ export default function PharmacyBills() {
                         </tr>
                       </thead>
                       <tbody className="text-secondary-900">
-                        {bill.items.map((item) => (
-                          <tr key={item.id} className="border-t border-secondary-200">
+                        {bill.items.map((item, idx) => (
+                          <tr key={item.id || idx} className="border-t border-secondary-200">
                             <td className="py-2">{item.medicineName}</td>
                             <td className="py-2 text-secondary-500">{item.batchNumber || '-'}</td>
                             <td className="py-2 text-right">{item.quantity}</td>

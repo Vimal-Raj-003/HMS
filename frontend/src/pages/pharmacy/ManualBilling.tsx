@@ -13,8 +13,11 @@ import {
   Loader2,
   Package,
   AlertCircle,
+  Printer,
+  Stethoscope,
 } from 'lucide-react';
 import { pharmacyAPI } from '../../lib/api';
+import { printBill } from '../../lib/printBill';
 
 interface Patient {
   id: string;
@@ -36,6 +39,13 @@ interface Medicine {
   nearestExpiry: string | null;
 }
 
+interface Doctor {
+  id: string;
+  firstName: string;
+  lastName: string;
+  specialty: string | null;
+}
+
 interface CartItem {
   medicineId: string;
   medicineName: string;
@@ -54,6 +64,12 @@ export default function ManualBilling() {
   const [patientResults, setPatientResults] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [searchingPatient, setSearchingPatient] = useState(false);
+
+  // Doctor search
+  const [doctorQuery, setDoctorQuery] = useState('');
+  const [doctorResults, setDoctorResults] = useState<Doctor[]>([]);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [searchingDoctor, setSearchingDoctor] = useState(false);
 
   // Medicine search
   const [medicineQuery, setMedicineQuery] = useState('');
@@ -80,6 +96,16 @@ export default function ManualBilling() {
     return () => clearTimeout(timer);
   }, [patientQuery]);
 
+  // Doctor search with debounce
+  useEffect(() => {
+    if (doctorQuery.trim().length < 2) {
+      setDoctorResults([]);
+      return;
+    }
+    const timer = setTimeout(() => searchDoctors(doctorQuery), 300);
+    return () => clearTimeout(timer);
+  }, [doctorQuery]);
+
   // Medicine search with debounce
   useEffect(() => {
     if (medicineQuery.trim().length < 2) {
@@ -99,6 +125,18 @@ export default function ManualBilling() {
       setPatientResults([]);
     } finally {
       setSearchingPatient(false);
+    }
+  };
+
+  const searchDoctors = async (query: string) => {
+    setSearchingDoctor(true);
+    try {
+      const response = await pharmacyAPI.searchDoctors(query);
+      setDoctorResults(Array.isArray(response.data) ? response.data : []);
+    } catch {
+      setDoctorResults([]);
+    } finally {
+      setSearchingDoctor(false);
     }
   };
 
@@ -192,7 +230,10 @@ export default function ManualBilling() {
         })),
         paymentMethod,
         discount,
-        notes: 'Manual billing - over the counter',
+        doctorId: selectedDoctor?.id || undefined,
+        notes: selectedDoctor
+          ? `Manual billing - Dr. ${selectedDoctor.firstName} ${selectedDoctor.lastName}`
+          : 'Manual billing - over the counter',
       });
       setBillData(response.data);
       setShowSuccess(true);
@@ -252,10 +293,18 @@ export default function ManualBilling() {
               View Bills
             </button>
             <button
+              onClick={() => printBill(billData.billId)}
+              className="flex-1 btn-secondary inline-flex items-center justify-center gap-2"
+            >
+              <Printer className="w-4 h-4" />
+              Print Bill
+            </button>
+            <button
               onClick={() => {
                 setShowSuccess(false);
                 setBillData(null);
                 setSelectedPatient(null);
+                setSelectedDoctor(null);
                 setCart([]);
                 setDiscount(0);
               }}
@@ -328,6 +377,69 @@ export default function ManualBilling() {
                     <p className="text-xs text-secondary-500">
                       {patient.patientNumber} &bull; {patient.phone}
                     </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Doctor Selection (Optional) */}
+      <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-5">
+        <h3 className="font-semibold text-secondary-900 mb-3 flex items-center gap-2">
+          <Stethoscope className="w-4 h-4 text-primary-600" />
+          Prescribing Doctor (Optional)
+        </h3>
+
+        {selectedDoctor ? (
+          <div className="p-3 bg-primary-50 border border-primary-200 rounded-lg flex items-center justify-between">
+            <div>
+              <p className="font-medium text-secondary-900">
+                Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}
+              </p>
+              {selectedDoctor.specialty && (
+                <p className="text-sm text-secondary-600">{selectedDoctor.specialty}</p>
+              )}
+            </div>
+            <button
+              onClick={() => { setSelectedDoctor(null); setDoctorQuery(''); }}
+              className="text-sm text-red-600 hover:text-red-700"
+            >
+              Change
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" />
+            <input
+              type="text"
+              value={doctorQuery}
+              onChange={(e) => setDoctorQuery(e.target.value)}
+              placeholder="Search doctor by name or specialty..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-secondary-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            />
+            {searchingDoctor && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 animate-spin" />
+            )}
+            {doctorResults.length > 0 && (
+              <div className="absolute z-20 top-full mt-1 w-full bg-white border border-secondary-200 rounded-lg shadow-dropdown max-h-60 overflow-auto">
+                {doctorResults.map((doctor) => (
+                  <button
+                    key={doctor.id}
+                    onClick={() => {
+                      setSelectedDoctor(doctor);
+                      setDoctorQuery('');
+                      setDoctorResults([]);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-secondary-50 border-b border-secondary-100 last:border-0"
+                  >
+                    <p className="font-medium text-secondary-900">
+                      Dr. {doctor.firstName} {doctor.lastName}
+                    </p>
+                    {doctor.specialty && (
+                      <p className="text-xs text-secondary-500">{doctor.specialty}</p>
+                    )}
                   </button>
                 ))}
               </div>

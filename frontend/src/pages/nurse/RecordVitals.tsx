@@ -468,7 +468,7 @@ export default function RecordVitals() {
         {/* Vitals Form */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Form */}
-          <div className="lg:col-span-2 bg-white rounded-xl border border-secondary-200 p-6">
+          <div className="lg:col-span-2 bg-white rounded-xl border border-secondary-200 p-6 overflow-hidden">
             <h3 className="text-lg font-semibold text-secondary-900 mb-4 flex items-center gap-2">
               <Activity className="w-5 h-5 text-primary-600" />
               Vital Signs
@@ -495,7 +495,7 @@ export default function RecordVitals() {
                 </div>
 
                 {/* Blood Pressure */}
-                <div>
+                <div className="min-w-0">
                   <label className="block text-sm font-medium text-secondary-700 mb-1.5">
                     <div className="flex items-center gap-1.5">
                       <Heart className="w-4 h-4 text-red-500" />
@@ -509,16 +509,20 @@ export default function RecordVitals() {
                       value={formData.bloodPressureSystolic}
                       onChange={handleChange}
                       placeholder="120"
-                      className="flex-1 px-3 py-2.5 rounded-lg border border-secondary-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                      min="50"
+                      max="300"
+                      className="min-w-0 flex-1 px-3 py-2.5 rounded-lg border border-secondary-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
                     />
-                    <span className="text-secondary-400">/</span>
+                    <span className="text-secondary-400 shrink-0">/</span>
                     <input
                       type="number"
                       name="bloodPressureDiastolic"
                       value={formData.bloodPressureDiastolic}
                       onChange={handleChange}
                       placeholder="80"
-                      className="flex-1 px-3 py-2.5 rounded-lg border border-secondary-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                      min="30"
+                      max="200"
+                      className="min-w-0 flex-1 px-3 py-2.5 rounded-lg border border-secondary-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
                     />
                   </div>
                 </div>

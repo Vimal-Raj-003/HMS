@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../config/database';
 import { ApiError } from '../middleware/error.middleware';
+import { sendOTP } from './sms.service';
 
 interface PatientSearchInput {
   mobile?: string;
@@ -300,12 +301,11 @@ export class PatientService {
       },
     });
 
-    // TODO: Send SMS via SMS gateway
-    // For development, log the OTP
-    console.log(`OTP for ${input.mobile}: ${otp}`);
+    // Send OTP via SMS provider
+    const smsSent = await sendOTP(input.mobile, otp);
 
     return {
-      message: 'OTP sent successfully',
+      message: smsSent ? 'OTP sent successfully' : 'OTP generated (SMS delivery pending)',
       // For development only - remove in production
       ...(process.env.NODE_ENV === 'development' && { otp }),
     };

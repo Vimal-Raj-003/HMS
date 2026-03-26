@@ -48,11 +48,11 @@ export default function Reports() {
         pharmacyAPI.getTopMedicinesReport({ period }),
       ]);
 
-      const salesResponse = salesRes as any;
-      const topMedicinesResponse = topMedicinesRes as any;
-      
+      const salesResponse = (salesRes as any).data as SalesData;
+      const topMedicinesResponse = (topMedicinesRes as any).data as TopMedicine[];
+
       setSalesData(salesResponse);
-      setTopMedicines(topMedicinesResponse || []);
+      setTopMedicines(Array.isArray(topMedicinesResponse) ? topMedicinesResponse : []);
     } catch (error) {
       console.error('Error fetching reports:', error);
     } finally {

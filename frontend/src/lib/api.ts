@@ -392,6 +392,10 @@ export const pharmacyAPI = {
   searchPatients: (search: string) =>
     api.get('/pharmacy/patients/search', { params: { search } }),
 
+  // Doctor search (for manual billing)
+  searchDoctors: (search: string) =>
+    api.get('/pharmacy/doctors/search', { params: { search } }),
+
   // Dispensing
   dispense: (data: any) =>
     api.post('/pharmacy/dispense', data),

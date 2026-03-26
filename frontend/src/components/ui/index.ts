@@ -21,3 +21,5 @@ export {
 } from './Skeleton';
 export { default as DocumentViewer } from './DocumentViewer';
 export { default as CollapsibleCard, CollapsibleCardSimple } from './CollapsibleCard';
+export { default as ChangePasswordForm } from './ChangePasswordForm';
+export { default as SecurityInfoCard } from './SecurityInfoCard';

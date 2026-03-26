@@ -288,9 +288,10 @@ export default function LabOrders() {
                   ))}
                 </div>
                 <div className="flex justify-end gap-2">
+                  {/* Sample Collection Button - Shows different states based on order status */}
                   {(order.status.toLowerCase() === 'ordered' || order.status.toLowerCase() === 'recommended') && (
                     <button
-                      onClick={() => navigate(`/lab/sample-collection?orderId=${order.id}`)}
+                      onClick={() => navigate(`/lab/sample/${order.id}`)}
                       className="btn-primary inline-flex items-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -299,26 +300,34 @@ export default function LabOrders() {
                       Collect Sample
                     </button>
                   )}
-                  {(order.status.toLowerCase() === 'sample_collected' || order.status.toLowerCase() === 'processing') && (
+                  {/* Sample Collected - Greyed out, disabled button */}
+                  {order.status.toLowerCase() === 'sample_collected' && (
                     <button
-                      onClick={() => navigate(`/lab/enter-results?orderId=${order.id}`)}
-                      className="btn-primary inline-flex items-center gap-2"
+                      disabled
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      Enter Results
+                      Sample Collected
                     </button>
                   )}
+                  {/* Results Button - For uploading results */}
                   <button
-                    onClick={() => navigate(`/lab/orders/${order.id}`)}
-                    className="btn-secondary inline-flex items-center gap-2"
+                    onClick={() => navigate(`/lab/results/${order.id}`)}
+                    className={`inline-flex items-center gap-2 ${
+                      order.status.toLowerCase() === 'completed'
+                        ? 'btn-secondary'
+                        : (order.status.toLowerCase() === 'sample_collected' || order.status.toLowerCase() === 'processing')
+                        ? 'btn-primary'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    disabled={order.status.toLowerCase() === 'ordered' || order.status.toLowerCase() === 'recommended'}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                     </svg>
-                    View Details
+                    Results
                   </button>
                 </div>
               </div>

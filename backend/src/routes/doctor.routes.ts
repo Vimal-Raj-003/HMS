@@ -519,6 +519,28 @@ router.post(
       const hospitalId = req.user!.hospitalId;
       const { startDate, endDate, reason, isRecurring, recurrencePattern } = req.body;
 
+      // Helper function to parse date-only string (YYYY-MM-DD) and create date at noon UTC
+      // This prevents timezone shifts that can change the calendar day
+      const parseDateOnly = (dateStr: string): Date => {
+        if (dateStr.includes('T')) {
+          // Already an ISO string, parse normally
+          return new Date(dateStr);
+        }
+        const [year, month, day] = dateStr.split('-').map(Number);
+        // Create date at noon UTC to ensure same calendar day in any timezone
+        return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+      };
+
+      const parsedStartDate = parseDateOnly(startDate);
+      const parsedEndDate = parseDateOnly(endDate);
+
+      console.log('[Doctor Schedule] Time-off request:', {
+        startDateInput: startDate,
+        endDateInput: endDate,
+        parsedStartDate: parsedStartDate.toISOString(),
+        parsedEndDate: parsedEndDate.toISOString(),
+      });
+
       // Get doctor info for notifications
       const doctor = await prisma.user.findUnique({
         where: { id: doctorId },
@@ -530,8 +552,8 @@ router.post(
           id: undefined,
           hospitalId,
           doctorId,
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
           reason,
           isRecurring: isRecurring || false,
           recurrencePattern,
@@ -539,6 +561,7 @@ router.post(
       });
 
       // Find all affected appointments within the time-off period
+      // Use date range comparison to match appointments on the same calendar day
       const affectedAppointments = await prisma.appointment.findMany({
         where: {
           doctorId,
@@ -547,8 +570,8 @@ router.post(
             in: ['PENDING_APPROVAL', 'SCHEDULED', 'CONFIRMED'],
           },
           appointmentDate: {
-            gte: new Date(startDate),
-            lte: new Date(endDate),
+            gte: parsedStartDate,
+            lte: parsedEndDate,
           },
         },
         include: {
@@ -730,9 +753,19 @@ router.get('/:id/slots', async (req: Request, res: Response, next: NextFunction)
       throw ApiError.notFound('Doctor not found', 'DOCTOR_NOT_FOUND');
     }
 
+    // Helper function to parse date-only string (YYYY-MM-DD) and create date at noon UTC
+    // This prevents timezone shifts that can change the calendar day
+    const parseDateOnly = (dateStr: string): Date => {
+      if (dateStr.includes('T')) {
+        return new Date(dateStr);
+      }
+      const [year, month, day] = dateStr.split('-').map(Number);
+      return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    };
+
     // Check if doctor is available on this day
-    const requestedDate = new Date(date as string);
-    const dayOfWeek = requestedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const requestedDate = parseDateOnly(date as string);
+    const dayOfWeek = requestedDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }).toLowerCase();
     
     const availableDays = doctor.availableDays ? JSON.parse(doctor.availableDays) : [];
     if (!availableDays.includes(dayOfWeek)) {
@@ -769,11 +802,19 @@ router.get('/:id/slots', async (req: Request, res: Response, next: NextFunction)
       });
     }
 
-    // Get booked appointments
+    // Get booked appointments - use date range to match appointments on the same calendar day
+    const startOfDay = new Date(requestedDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(requestedDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
     const bookedAppointments = await prisma.appointment.findMany({
       where: {
         doctorId,
-        appointmentDate: requestedDate,
+        appointmentDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
         status: { not: 'CANCELLED' },
       },
       select: { startTime: true },
@@ -1264,6 +1305,7 @@ router.post(
       }
 
       // Use transaction for data integrity - appointment lookup is INSIDE to prevent TOCTOU race
+      // Increased timeout to 30 seconds for complex operations with medicines and lab tests
       const result = await prisma.$transaction(async (tx) => {
         // Verify appointment belongs to this doctor (inside transaction for consistency)
         const appointment = await tx.appointment.findFirst({
@@ -1507,6 +1549,9 @@ router.post(
         }
 
         return { consultation, prescriptionId, labOrderId };
+      }, {
+        timeout: 30000, // 30 seconds timeout for complex operations
+        maxWait: 35000, // Maximum time to wait for transaction to start
       });
 
       console.log('[Consultation] Transaction completed successfully');
