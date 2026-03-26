@@ -64,8 +64,6 @@ const navigation = {
   LAB_TECH: [
     { name: 'Dashboard', path: '/lab/dashboard', icon: Home },
     { name: 'Orders', path: '/lab/orders', icon: FlaskConical },
-    { name: 'Sample Collection', path: '/lab/samples', icon: TestTube },
-    { name: 'Test Catalog', path: '/lab/catalog', icon: FileText },
     { name: 'Settings', path: '/lab/settings', icon: Settings },
   ],
   PATIENT: [

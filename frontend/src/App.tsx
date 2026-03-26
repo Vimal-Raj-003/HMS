@@ -52,6 +52,7 @@ import LabOrders from './pages/lab/LabOrders';
 import SampleCollection from './pages/lab/SampleCollection';
 import EnterResults from './pages/lab/EnterResults';
 import TestCatalog from './pages/lab/TestCatalog';
+import LabSettings from './pages/lab/Settings';
 
 // Patient Pages
 import BookAppointment from './pages/patient/BookAppointment';
@@ -275,9 +276,12 @@ function App() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<LabDashboard />} />
         <Route path="orders" element={<LabOrders />} />
+        <Route path="sample" element={<SampleCollection />} />
         <Route path="sample/:orderId" element={<SampleCollection />} />
+        <Route path="results" element={<EnterResults />} />
         <Route path="results/:orderId" element={<EnterResults />} />
         <Route path="catalog" element={<TestCatalog />} />
+        <Route path="settings" element={<LabSettings />} />
       </Route>
 
       {/* Patient Routes */}

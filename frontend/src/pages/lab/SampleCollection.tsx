@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { labAPI } from '../../lib/api';
 
 interface Test {
@@ -31,9 +31,8 @@ interface LabOrder {
 }
 
 export default function SampleCollection() {
-  const [searchParams] = useSearchParams();
+  const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const orderId = searchParams.get('orderId');
   
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<LabOrder[]>([]);
@@ -72,8 +71,7 @@ export default function SampleCollection() {
   const handleSelectOrder = (order: LabOrder) => {
     setSelectedOrder(order);
     // Update URL with orderId
-    searchParams.set('orderId', order.id);
-    navigate({ search: searchParams.toString() }, { replace: true });
+    navigate(`/lab/sample/${order.id}`, { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,10 +88,9 @@ export default function SampleCollection() {
       // Refresh the list
       await fetchPendingOrders();
       
-      // Clear selection
+      // Clear selection and navigate back to list
       setSelectedOrder(null);
-      searchParams.delete('orderId');
-      navigate({ search: searchParams.toString() }, { replace: true });
+      navigate('/lab/sample', { replace: true });
       
       alert('Sample collected successfully!');
     } catch (error) {
@@ -263,8 +260,7 @@ export default function SampleCollection() {
                   type="button"
                   onClick={() => {
                     setSelectedOrder(null);
-                    searchParams.delete('orderId');
-                    navigate({ search: searchParams.toString() }, { replace: true });
+                    navigate('/lab/sample', { replace: true });
                   }}
                   className="px-4 py-2 border border-secondary-300 rounded-lg text-secondary-700 hover:bg-secondary-50"
                 >

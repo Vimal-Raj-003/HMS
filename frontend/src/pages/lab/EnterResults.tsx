@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { labAPI } from '../../lib/api';
 
 interface Test {
@@ -48,9 +48,8 @@ interface ResultEntry {
 }
 
 export default function EnterResults() {
-  const [searchParams] = useSearchParams();
+  const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const orderId = searchParams.get('orderId');
   
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<LabOrder[]>([]);
@@ -73,13 +72,15 @@ export default function EnterResults() {
 
   const fetchPendingResults = async () => {
     try {
-      // Get orders that have samples collected or are in processing
+      // Get orders that have samples collected, are in processing, or completed
       const response = await labAPI.getOrders({ status: 'sample_collected' });
       const processingResponse = await labAPI.getOrders({ status: 'processing' });
+      const completedResponse = await labAPI.getOrders({ status: 'completed' });
       
       const allOrders = [
         ...(Array.isArray(response.data) ? response.data : []),
-        ...(Array.isArray(processingResponse.data) ? processingResponse.data : [])
+        ...(Array.isArray(processingResponse.data) ? processingResponse.data : []),
+        ...(Array.isArray(completedResponse.data) ? completedResponse.data : [])
       ];
       
       setOrders(allOrders);
@@ -94,9 +95,12 @@ export default function EnterResults() {
   const selectOrder = (order: LabOrder) => {
     setSelectedOrder(order);
     
-    // Initialize results for each test
+    // For completed orders, show all tests with their results (read-only view)
+    // For pending/processing orders, only show tests that need results
+    const isCompleted = order.status.toLowerCase() === 'completed';
+    
     const initialResults: ResultEntry[] = order.tests
-      .filter(t => t.status.toLowerCase() !== 'completed')
+      .filter(t => isCompleted || t.status.toLowerCase() !== 'completed')
       .map(t => ({
         itemId: t.id,
         testName: t.name,
@@ -110,8 +114,7 @@ export default function EnterResults() {
     setResults(initialResults);
     
     // Update URL
-    searchParams.set('orderId', order.id);
-    navigate({ search: searchParams.toString() }, { replace: true });
+    navigate(`/lab/results/${order.id}`, { replace: true });
   };
 
   const updateResult = (itemId: string, field: keyof ResultEntry, value: string | boolean) => {
@@ -157,11 +160,10 @@ export default function EnterResults() {
       // Refresh the list
       await fetchPendingResults();
       
-      // Clear selection
+      // Clear selection and navigate back to list
       setSelectedOrder(null);
       setResults([]);
-      searchParams.delete('orderId');
-      navigate({ search: searchParams.toString() }, { replace: true });
+      navigate('/lab/results', { replace: true });
       
       alert('Results submitted successfully!');
     } catch (error) {
@@ -213,37 +215,47 @@ export default function EnterResults() {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-xl border border-secondary-200 shadow-card overflow-hidden">
             <div className="p-4 border-b border-secondary-200 bg-secondary-50">
-              <h2 className="font-semibold text-secondary-900">Pending Results Entry</h2>
-              <p className="text-sm text-secondary-500">{orders.length} orders awaiting results</p>
+              <h2 className="font-semibold text-secondary-900">Results Entry</h2>
+              <p className="text-sm text-secondary-500">{orders.length} orders</p>
             </div>
             <div className="divide-y divide-secondary-200 max-h-[600px] overflow-y-auto">
               {orders.length === 0 ? (
                 <div className="p-8 text-center text-secondary-500">
-                  No pending results
+                  No orders found
                 </div>
               ) : (
-                orders.map(order => (
-                  <button
-                    key={order.id}
-                    onClick={() => selectOrder(order)}
-                    className={`w-full p-4 text-left hover:bg-secondary-50 transition-colors ${
-                      selectedOrder?.id === order.id ? 'bg-primary-50 border-l-4 border-primary-500' : ''
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-medium text-secondary-900">{order.patientName}</span>
-                      <span className={`px-2 py-0.5 text-xs rounded ${getPriorityColor(order.priority)}`}>
-                        {order.priority}
-                      </span>
-                    </div>
-                    <div className="text-sm text-secondary-500">
-                      {order.orderNumber} • {order.tests.length} test(s)
-                    </div>
-                    <div className="text-xs text-secondary-400 mt-1">
-                      Collected: {order.sampleCollectedAt ? new Date(order.sampleCollectedAt).toLocaleString() : 'N/A'}
-                    </div>
-                  </button>
-                ))
+                orders.map(order => {
+                  const isCompleted = order.status.toLowerCase() === 'completed';
+                  return (
+                    <button
+                      key={order.id}
+                      onClick={() => selectOrder(order)}
+                      className={`w-full p-4 text-left hover:bg-secondary-50 transition-colors ${
+                        selectedOrder?.id === order.id ? 'bg-primary-50 border-l-4 border-primary-500' : ''
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-medium text-secondary-900">{order.patientName}</span>
+                        <div className="flex gap-1">
+                          {isCompleted && (
+                            <span className="px-2 py-0.5 text-xs rounded bg-green-100 text-green-800">
+                              Completed
+                            </span>
+                          )}
+                          <span className={`px-2 py-0.5 text-xs rounded ${getPriorityColor(order.priority)}`}>
+                            {order.priority}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-sm text-secondary-500">
+                        {order.orderNumber} • {order.tests.length} test(s)
+                      </div>
+                      <div className="text-xs text-secondary-400 mt-1">
+                        Collected: {order.sampleCollectedAt ? new Date(order.sampleCollectedAt).toLocaleString() : 'N/A'}
+                      </div>
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
@@ -253,7 +265,7 @@ export default function EnterResults() {
         <div className="lg:col-span-2">
           {!selectedOrder ? (
             <div className="bg-white rounded-xl border border-secondary-200 shadow-card p-8 text-center text-secondary-500">
-              Select an order from the list to enter results
+              Select an order from the list to view or enter results
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -268,8 +280,10 @@ export default function EnterResults() {
                   </div>
                   <div className="text-right">
                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      selectedOrder.status.toLowerCase() === 'processing' 
-                        ? 'bg-purple-100 text-purple-800' 
+                      selectedOrder.status.toLowerCase() === 'completed'
+                        ? 'bg-green-100 text-green-800'
+                        : selectedOrder.status.toLowerCase() === 'processing'
+                        ? 'bg-purple-100 text-purple-800'
                         : 'bg-blue-100 text-blue-800'
                     }`}>
                       {selectedOrder.status.replace(/_/g, ' ').toUpperCase()}
@@ -278,67 +292,85 @@ export default function EnterResults() {
                 </div>
               </div>
 
-              {/* Results Entry */}
+              {/* Results Entry/View */}
               <div className="bg-white rounded-xl border border-secondary-200 shadow-card overflow-hidden">
                 <div className="p-4 border-b border-secondary-200 bg-secondary-50">
-                  <h2 className="font-semibold text-secondary-900">Test Results</h2>
+                  <h2 className="font-semibold text-secondary-900">
+                    {selectedOrder.status.toLowerCase() === 'completed' ? 'Test Results (View Only)' : 'Test Results'}
+                  </h2>
                 </div>
                 <div className="divide-y divide-secondary-200">
-                  {results.map((result) => (
-                    <div key={result.itemId} className="p-4">
-                      <div className="mb-3 flex justify-between items-center">
-                        <h4 className="font-medium text-secondary-900">{result.testName}</h4>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getInterpretationColor(result.interpretation)}`}>
-                          {result.interpretation.toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-secondary-700 mb-1">Result Value *</label>
-                          <input
-                            type="text"
-                            value={result.resultValue}
-                            onChange={(e) => updateResult(result.itemId, 'resultValue', e.target.value)}
-                            placeholder="Enter value"
-                            className="w-full rounded-lg border border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 px-3 py-2"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-secondary-700 mb-1">Unit</label>
-                          <input
-                            type="text"
-                            value={result.unit}
-                            onChange={(e) => updateResult(result.itemId, 'unit', e.target.value)}
-                            placeholder="e.g., mg/dL"
-                            className="w-full rounded-lg border border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-secondary-700 mb-1">Reference Range</label>
-                          <input
-                            type="text"
-                            value={result.referenceRange}
-                            onChange={(e) => updateResult(result.itemId, 'referenceRange', e.target.value)}
-                            placeholder="e.g., 70-100"
-                            className="w-full rounded-lg border border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-secondary-700 mb-1">Interpretation</label>
-                          <select
-                            value={result.interpretation}
-                            onChange={(e) => updateResult(result.itemId, 'interpretation', e.target.value)}
-                            className="w-full rounded-lg border border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 px-3 py-2"
-                          >
-                            <option value="normal">Normal</option>
-                            <option value="abnormal">Abnormal</option>
-                            <option value="critical">Critical</option>
-                          </select>
-                        </div>
-                      </div>
+                  {results.length === 0 ? (
+                    <div className="p-8 text-center text-secondary-500">
+                      No results available
                     </div>
-                  ))}
+                  ) : (
+                    results.map((result) => {
+                      const isCompleted = selectedOrder.status.toLowerCase() === 'completed';
+                      return (
+                        <div key={result.itemId} className="p-4">
+                          <div className="mb-3 flex justify-between items-center">
+                            <h4 className="font-medium text-secondary-900">{result.testName}</h4>
+                            <span className={`px-2 py-1 text-xs rounded-full ${getInterpretationColor(result.interpretation)}`}>
+                              {result.interpretation.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-secondary-700 mb-1">Result Value *</label>
+                              <input
+                                type="text"
+                                value={result.resultValue}
+                                onChange={(e) => updateResult(result.itemId, 'resultValue', e.target.value)}
+                                placeholder="Enter value"
+                                className="w-full rounded-lg border border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 px-3 py-2 disabled:bg-secondary-100 disabled:text-secondary-700"
+                                required
+                                disabled={isCompleted}
+                                readOnly={isCompleted}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-secondary-700 mb-1">Unit</label>
+                              <input
+                                type="text"
+                                value={result.unit}
+                                onChange={(e) => updateResult(result.itemId, 'unit', e.target.value)}
+                                placeholder="e.g., mg/dL"
+                                className="w-full rounded-lg border border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 px-3 py-2 disabled:bg-secondary-100 disabled:text-secondary-700"
+                                disabled={isCompleted}
+                                readOnly={isCompleted}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-secondary-700 mb-1">Reference Range</label>
+                              <input
+                                type="text"
+                                value={result.referenceRange}
+                                onChange={(e) => updateResult(result.itemId, 'referenceRange', e.target.value)}
+                                placeholder="e.g., 70-100"
+                                className="w-full rounded-lg border border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 px-3 py-2 disabled:bg-secondary-100 disabled:text-secondary-700"
+                                disabled={isCompleted}
+                                readOnly={isCompleted}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-secondary-700 mb-1">Interpretation</label>
+                              <select
+                                value={result.interpretation}
+                                onChange={(e) => updateResult(result.itemId, 'interpretation', e.target.value)}
+                                className="w-full rounded-lg border border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 px-3 py-2 disabled:bg-secondary-100 disabled:text-secondary-700"
+                                disabled={isCompleted}
+                              >
+                                <option value="normal">Normal</option>
+                                <option value="abnormal">Abnormal</option>
+                                <option value="critical">Critical</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
@@ -365,20 +397,21 @@ export default function EnterResults() {
                   onClick={() => {
                     setSelectedOrder(null);
                     setResults([]);
-                    searchParams.delete('orderId');
-                    navigate({ search: searchParams.toString() }, { replace: true });
+                    navigate('/lab/results', { replace: true });
                   }}
                   className="px-4 py-2 border border-secondary-300 rounded-lg text-secondary-700 hover:bg-secondary-50"
                 >
-                  Cancel
+                  {selectedOrder.status.toLowerCase() === 'completed' ? 'Back' : 'Cancel'}
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting || results.length === 0}
-                  className="btn-primary px-6 py-2 disabled:opacity-50"
-                >
-                  {submitting ? 'Submitting...' : 'Submit Results'}
-                </button>
+                {selectedOrder.status.toLowerCase() !== 'completed' && (
+                  <button
+                    type="submit"
+                    disabled={submitting || results.length === 0}
+                    className="btn-primary px-6 py-2 disabled:opacity-50"
+                  >
+                    {submitting ? 'Submitting...' : 'Submit Results'}
+                  </button>
+                )}
               </div>
             </form>
           )}
