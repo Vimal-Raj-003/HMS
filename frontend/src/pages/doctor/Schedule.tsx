@@ -42,13 +42,37 @@ export default function DoctorSchedule() {
     fetchTimeOffs();
   }, []);
 
-  // Helper function to get local date string in YYYY-MM-DD format (IST timezone)
+  // Helper function to get local date string in YYYY-MM-DD format
+  // Uses local date components to avoid timezone conversion issues
   const getLocalDateString = (date: Date): string => {
-    // Adjust for IST timezone (UTC+5:30)
-    const istOffset = 5.5 * 60; // minutes
-    const utcOffset = date.getTimezoneOffset();
-    const istTime = new Date(date.getTime() + (istOffset + utcOffset) * 60000);
-    return istTime.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper function to parse ISO date string from backend and get local date string
+  // Backend stores dates at noon UTC, so we need to handle the conversion properly
+  const parseBackendDate = (isoString: string): string => {
+    const date = new Date(isoString);
+    // Use UTC methods since backend stores at noon UTC
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper function to format a date for display without timezone issues
+  const formatDisplayDate = (isoString: string): string => {
+    const date = new Date(isoString);
+    // Use UTC methods to match the stored date
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
   };
 
   const fetchTimeOffs = async () => {
@@ -445,12 +469,17 @@ export default function DoctorSchedule() {
 
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-2">
-                Date: <strong>{selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}</strong>
+                Date: <strong>{selectedDate && (() => {
+                  // Parse date string using local time components to avoid timezone shifts
+                  const [year, month, day] = selectedDate.split('-').map(Number);
+                  const localDate = new Date(year, month - 1, day);
+                  return localDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  });
+                })()}</strong>
               </p>
               <p className="text-xs text-gray-500">
                 Patients will not be able to book appointments on this date.
