@@ -32,42 +32,28 @@ router.get('/dashboard-stats', authenticate, authorize('NURSE'), async (req: Req
     const nowIST = new Date(now.getTime() + istOffset);
     const todayStr = nowIST.toISOString().split('T')[0];
     const today = new Date(todayStr + 'T00:00:00.000Z');
-    // Get total patients today (appointments scheduled today)
+    // Get total patients (all non-cancelled appointments across all dates)
     const totalPatients = await prisma.appointment.count({
       where: {
         hospitalId,
-        appointmentDate: {
-          gte: today,
-          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
-        },
-        status: {
-          not: 'CANCELLED',
-        },
+        status: { not: 'CANCELLED' },
       },
     });
 
-    // Get vitals completed today
+    // Get vitals completed (all vitals ever recorded for this hospital)
     const vitalsCompleted = await prisma.vitals.count({
-      where: {
-        hospitalId,
-        recordedAt: { gte: today },
-      },
+      where: { hospitalId },
     });
 
-    // Get pending vitals (appointments today without vitals)
+    // Get pending vitals (all non-cancelled appointments without vitals)
     const appointmentsWithVitals = await prisma.appointment.findMany({
       where: {
         hospitalId,
-        appointmentDate: {
-          gte: today,
-          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
-        },
-        status: {
-          not: 'CANCELLED',
-        },
+        status: { not: 'CANCELLED' },
       },
-      include: {
-        vitals: true,
+      select: {
+        id: true,
+        vitals: { select: { id: true } },
       },
     });
     const pendingVitals = appointmentsWithVitals.filter(apt => !apt.vitals).length;

@@ -90,11 +90,11 @@ export default function NurseDashboard() {
       {/* Stats Cards */}
       <div className="hms-three-col">
         <StatCard
-          title="Total Patients Today"
+          title="Total Patients"
           value={stats?.totalPatients || 0}
           icon={<Users className="w-6 h-6" />}
           color="blue"
-          subtitle="Appointments scheduled"
+          subtitle="All appointments"
         />
         <StatCard
           title="Vitals Completed"
