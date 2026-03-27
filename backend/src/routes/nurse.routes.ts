@@ -32,8 +32,6 @@ router.get('/dashboard-stats', authenticate, authorize('NURSE'), async (req: Req
     const nowIST = new Date(now.getTime() + istOffset);
     const todayStr = nowIST.toISOString().split('T')[0];
     const today = new Date(todayStr + 'T00:00:00.000Z');
-    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-
     // Get total patients today (appointments scheduled today)
     const totalPatients = await prisma.appointment.count({
       where: {
@@ -104,20 +102,14 @@ router.get('/dashboard-stats', authenticate, authorize('NURSE'), async (req: Req
       },
     });
 
-    // Get waiting for vitals - patients with appointments in next 2 hours without vitals
-    const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
-    const twoHoursLaterTime = twoHoursLater.toTimeString().slice(0, 5);
-
+    // Get waiting for vitals - ALL today's non-cancelled, non-completed appointments without vitals
+    // Shows all pending patients so the nurse has a complete picture (not just a 2-hour window)
     const waitingForVitals = await prisma.appointment.findMany({
       where: {
         hospitalId,
         appointmentDate: {
           gte: today,
           lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
-        },
-        startTime: {
-          gte: currentTime,
-          lte: twoHoursLaterTime,
         },
         status: {
           notIn: ['CANCELLED', 'COMPLETED'],
@@ -328,13 +320,14 @@ router.get(
           },
         });
 
-        // Get today's appointment for each patient (single batch query)
+        // Get today + upcoming appointments for each patient (single batch query)
+        // Prioritize today's appointments, fallback to nearest upcoming
         const patientIds = patientResults.map(p => p.id);
-        const todaysAppointments = patientIds.length > 0
+        const relevantAppointments = patientIds.length > 0
           ? await prisma.appointment.findMany({
               where: {
                 patientId: { in: patientIds },
-                appointmentDate: { gte: todayStart, lte: todayEnd },
+                appointmentDate: { gte: todayStart },
                 status: { not: 'CANCELLED' },
               },
               include: {
@@ -347,15 +340,24 @@ router.get(
                   },
                 },
               },
+              orderBy: [{ appointmentDate: 'asc' }, { startTime: 'asc' }],
             })
           : [];
 
-        // Index appointments by patientId
-        const appointmentByPatient = new Map<string, typeof todaysAppointments[0]>();
-        for (const apt of todaysAppointments) {
-          // Keep the latest appointment per patient
-          if (!appointmentByPatient.has(apt.patientId)) {
+        // Index appointments by patientId — prefer today's, then nearest upcoming
+        const appointmentByPatient = new Map<string, typeof relevantAppointments[0]>();
+        for (const apt of relevantAppointments) {
+          const existing = appointmentByPatient.get(apt.patientId);
+          if (!existing) {
             appointmentByPatient.set(apt.patientId, apt);
+          } else {
+            // Prefer today's appointment over future ones
+            const existingDate = existing.appointmentDate.toISOString().split('T')[0];
+            const aptDate = apt.appointmentDate.toISOString().split('T')[0];
+            const todayDateStr = todayStart.toISOString().split('T')[0];
+            if (aptDate === todayDateStr && existingDate !== todayDateStr) {
+              appointmentByPatient.set(apt.patientId, apt);
+            }
           }
         }
 
@@ -427,7 +429,7 @@ router.get(
 );
 
 // @route   GET /api/nurse/patient/:id/appointments
-// @desc    Get patient appointments for today
+// @desc    Get patient appointments (today + upcoming non-cancelled)
 // @access  Private (Nurse)
 router.get(
   '/patient/:id/appointments',
@@ -441,16 +443,13 @@ router.get(
       const nowIST = new Date(now.getTime() + istOffset);
       const todayStr = nowIST.toISOString().split('T')[0];
       const todayStart = new Date(todayStr + 'T00:00:00.000Z');
-      const todayEnd = new Date(todayStr + 'T23:59:59.999Z');
 
+      // Return today's + upcoming appointments so the nurse sees the full picture
       const appointments = await prisma.appointment.findMany({
         where: {
           patientId: req.params.id,
           hospitalId: req.user!.hospitalId,
-          appointmentDate: {
-            gte: todayStart,
-            lte: todayEnd,
-          },
+          appointmentDate: { gte: todayStart },
           status: { not: 'CANCELLED' },
         },
         include: {
@@ -462,10 +461,14 @@ router.get(
               specialty: true,
             },
           },
+          vitals: {
+            select: { id: true },
+          },
         },
-        orderBy: {
-          startTime: 'asc',
-        },
+        orderBy: [
+          { appointmentDate: 'asc' },
+          { startTime: 'asc' },
+        ],
       });
 
       res.json({
@@ -476,6 +479,7 @@ router.get(
           appointmentTime: apt.startTime,
           status: apt.status,
           doctor: apt.doctor,
+          hasVitals: !!apt.vitals,
         })),
       });
     } catch (error) {

@@ -133,19 +133,19 @@ export default function RecordVitals() {
           setSelectedAppointment(apt);
         }
       } else if (appointmentsRes.data?.length > 0) {
-        // Select the first pending appointment for today
-        // Normalize both dates to YYYY-MM-DD for comparison since backend
-        // returns full ISO strings (e.g., "2026-03-21T00:00:00.000Z")
-        const today = new Date().toISOString().split('T')[0];
+        // Select the best appointment for vitals recording:
+        // 1st priority: today's non-completed appointment
+        // 2nd priority: nearest upcoming non-completed appointment
+        const now = new Date();
+        const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const todayApt = appointmentsRes.data.find((a: Appointment) => {
           const aptDate = new Date(a.appointmentDate).toISOString().split('T')[0];
-          return aptDate === today && a.status !== 'COMPLETED';
+          return aptDate === todayLocal && a.status !== 'COMPLETED';
         });
         if (todayApt) {
           setSelectedAppointment(todayApt);
         } else {
-          // Fallback: select the first non-completed appointment
-          // This ensures vitals are always linked to an appointment
+          // Fallback: select the first non-completed appointment (nearest upcoming)
           const firstPending = appointmentsRes.data.find(
             (a: Appointment) => a.status !== 'COMPLETED'
           );

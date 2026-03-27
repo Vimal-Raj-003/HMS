@@ -299,11 +299,15 @@ router.get('/queue', authenticate, authorize('DOCTOR'), async (req: Request, res
       filterDate = parsedDate;
     }
 
-    // Get appointments for the specified date
+    // Get appointments for the specified date (use range to handle any time component variation)
+    const filterDateEnd = new Date(filterDate.getTime() + 24 * 60 * 60 * 1000);
     const appointments = await prisma.appointment.findMany({
       where: {
         doctorId,
-        appointmentDate: filterDate,
+        appointmentDate: {
+          gte: filterDate,
+          lt: filterDateEnd,
+        },
         status: { not: 'CANCELLED' },
       },
       include: {

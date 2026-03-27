@@ -201,7 +201,7 @@ export default function NurseDashboard() {
                   <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
                 <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>All caught up!</p>
-                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>No patients waiting for vitals in the next 2 hours</p>
+                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>All patients have vitals recorded for today</p>
               </div>
             )}
           </div>
