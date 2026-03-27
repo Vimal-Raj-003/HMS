@@ -139,10 +139,10 @@ export default function BookAppointment() {
     try {
       const response = await patientPortalAPI.getDoctorSlots(selectedDoctor.id, selectedDate);
       
-      // Check if doctor has time-off for this date
+      // Check if doctor is unavailable (time-off, non-working day, etc.)
       if (response.data && response.data.slots && response.data.slots.length === 0) {
-        // Doctor has marked this date as unavailable
-        toast.error('Doctor is unavailable on this date. Please select another date.');
+        const msg = (response.data as any).message || 'Doctor is unavailable on this date. Please select another date.';
+        toast.error(msg);
         setSlotsData(null);
         return;
       }
@@ -162,16 +162,20 @@ export default function BookAppointment() {
     ? doctors.filter((d) => d.specialty === selectedSpecialization)
     : [];
 
-  // Generate dates for next 15 days
+  // Generate dates for next 15 days using local date (matches backend IST handling)
   const generateAvailableDates = () => {
     const dates: { date: string; display: string; dayName: string }[] = [];
     const today = new Date();
-    
+
     for (let i = 0; i < 15; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() + i);
+      // Use local date components (not UTC) to match user's timezone
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
       dates.push({
-        date: date.toISOString().split('T')[0],
+        date: `${yyyy}-${mm}-${dd}`,
         display: date.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
@@ -179,7 +183,7 @@ export default function BookAppointment() {
         dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
       });
     }
-    
+
     return dates;
   };
 

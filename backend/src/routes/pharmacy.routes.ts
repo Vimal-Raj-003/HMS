@@ -952,97 +952,95 @@ router.post(
       const pharmacistId = req.user!.id;
       const { prescriptionId, patientId, items, paymentMethod, discount = 0, notes, doctorId } = req.body;
 
-      // Start transaction
-      const result = await prisma.$transaction(async (tx) => {
-        let subtotal = 0;
-        let totalCgst = 0;
-        let totalSgst = 0;
-        const dispenseItems: any[] = [];
-        const billItems: any[] = [];
-        const stockUpdates: any[] = [];
+      // ====================================================================
+      // PHASE 1: Validate & prepare all data OUTSIDE the transaction (reads only)
+      // This avoids consuming transaction time on read queries.
+      // ====================================================================
+      let subtotal = 0;
+      let totalCgst = 0;
+      let totalSgst = 0;
+      const dispenseItems: any[] = [];
+      const billItems: any[] = [];
+      const stockUpdates: any[] = [];
 
-        for (const item of items) {
-          const medicine = await tx.medicine.findFirst({
-            where: { id: item.medicineId, hospitalId },
-            include: {
-              inventory: {
-                where: { quantity: { gte: item.quantity } },
-                orderBy: { expiryDate: 'asc' },
-                take: 1,
-              },
+      for (const item of items) {
+        const medicine = await prisma.medicine.findFirst({
+          where: { id: item.medicineId, hospitalId },
+          include: {
+            inventory: {
+              where: { quantity: { gte: item.quantity } },
+              orderBy: { expiryDate: 'asc' },
+              take: 1,
             },
-          });
+          },
+        });
 
-          if (!medicine) {
-            throw ApiError.badRequest(`Medicine not found: ${item.medicineId}`, 'MEDICINE_NOT_FOUND');
-          }
-
-          if (medicine.inventory.length === 0) {
-            throw ApiError.badRequest(`Insufficient stock for ${medicine.name}`, 'INSUFFICIENT_STOCK');
-          }
-
-          const inventoryItem = medicine.inventory[0];
-          // Priority: frontend-provided price > inventory MRP > medicine base price
-          const inventoryMRP = inventoryItem.mrp ? Number(inventoryItem.mrp) : 0;
-          const medicineBasePrice = Number(medicine.price) || 0;
-          const unitPrice = item.unitPrice || (inventoryMRP > 0 ? inventoryMRP : medicineBasePrice);
-          const itemTotal = unitPrice * item.quantity;
-          subtotal += itemTotal;
-
-          // Per-medicine GST calculation (CGST + SGST split)
-          const gstPercent = medicine.gstPercentage ? Number(medicine.gstPercentage) : 5;
-          const itemCgst = itemTotal * (gstPercent / 2) / 100;
-          const itemSgst = itemTotal * (gstPercent / 2) / 100;
-          totalCgst += itemCgst;
-          totalSgst += itemSgst;
-
-          dispenseItems.push({
-            medicineId: item.medicineId,
-            quantity: item.quantity,
-            batchNumber: inventoryItem.batchNumber,
-            expiryDate: inventoryItem.expiryDate,
-            rate: unitPrice,
-            amount: itemTotal,
-            originalMedicineId: item.originalMedicineId,
-            substitutionType: item.substitutionType,
-            substitutionReason: item.substitutionReason,
-          });
-
-          billItems.push({
-            medicineId: item.medicineId,
-            medicineName: medicine.name,
-            quantity: item.quantity,
-            unitPrice,
-            totalPrice: itemTotal,
-            batchNumber: inventoryItem.batchNumber,
-            expiryDate: inventoryItem.expiryDate,
-            mrp: inventoryItem.mrp ? Number(inventoryItem.mrp) : unitPrice,
-            gstPercentage: gstPercent,
-            cgst: itemCgst,
-            sgst: itemSgst,
-          });
-
-          stockUpdates.push({
-            inventoryId: inventoryItem.id,
-            quantity: item.quantity,
-            medicineId: item.medicineId,
-          });
+        if (!medicine) {
+          throw ApiError.badRequest(`Medicine not found: ${item.medicineId}`, 'MEDICINE_NOT_FOUND');
         }
 
-        // Calculate tax and totals (per-medicine GST, split as CGST + SGST)
-        const tax = Math.round((totalCgst + totalSgst) * 100) / 100;
-        const finalAmount = subtotal + tax - discount;
+        if (medicine.inventory.length === 0) {
+          throw ApiError.badRequest(`Insufficient stock for ${medicine.name}`, 'INSUFFICIENT_STOCK');
+        }
 
-        // Generate numbers
-        const dispenseCount = await tx.pharmacyDispense.count({ where: { hospitalId } });
-        const billCount = await tx.pharmacyBill.count({ where: { hospitalId } });
-        const dispenseNumber = `DSP-${String(dispenseCount + 1).padStart(6, '0')}`;
-        const billNumber = `PHB-${new Date().getFullYear()}-${String(billCount + 1).padStart(6, '0')}`;
+        const inventoryItem = medicine.inventory[0];
+        const inventoryMRP = inventoryItem.mrp ? Number(inventoryItem.mrp) : 0;
+        const medicineBasePrice = Number(medicine.price) || 0;
+        const unitPrice = item.unitPrice || (inventoryMRP > 0 ? inventoryMRP : medicineBasePrice);
+        const itemTotal = unitPrice * item.quantity;
+        subtotal += itemTotal;
 
+        const gstPercent = medicine.gstPercentage ? Number(medicine.gstPercentage) : 5;
+        const itemCgst = itemTotal * (gstPercent / 2) / 100;
+        const itemSgst = itemTotal * (gstPercent / 2) / 100;
+        totalCgst += itemCgst;
+        totalSgst += itemSgst;
+
+        dispenseItems.push({
+          medicineId: item.medicineId,
+          quantity: item.quantity,
+          batchNumber: inventoryItem.batchNumber,
+          expiryDate: inventoryItem.expiryDate,
+          rate: unitPrice,
+          amount: itemTotal,
+          originalMedicineId: item.originalMedicineId,
+          substitutionType: item.substitutionType,
+          substitutionReason: item.substitutionReason,
+        });
+
+        billItems.push({
+          medicineId: item.medicineId,
+          medicineName: medicine.name,
+          quantity: item.quantity,
+          unitPrice,
+          totalPrice: itemTotal,
+          batchNumber: inventoryItem.batchNumber,
+          expiryDate: inventoryItem.expiryDate,
+        });
+
+        stockUpdates.push({
+          inventoryId: inventoryItem.id,
+          quantity: item.quantity,
+          medicineId: item.medicineId,
+        });
+      }
+
+      const tax = Math.round((totalCgst + totalSgst) * 100) / 100;
+      const finalAmount = subtotal + tax - discount;
+
+      // Pre-generate sequential numbers outside transaction
+      const dispenseCount = await prisma.pharmacyDispense.count({ where: { hospitalId } });
+      const billCount = await prisma.pharmacyBill.count({ where: { hospitalId } });
+      const dispenseNumber = `DSP-${String(dispenseCount + 1).padStart(6, '0')}`;
+      const billNumber = `PHB-${new Date().getFullYear()}-${String(billCount + 1).padStart(6, '0')}`;
+
+      // ====================================================================
+      // PHASE 2: Write-only transaction (fast — only creates and updates)
+      // ====================================================================
+      const result = await prisma.$transaction(async (tx) => {
         // Create dispense record
         const dispense = await tx.pharmacyDispense.create({
           data: {
-            id: undefined,
             hospitalId,
             patientId,
             prescriptionId,
@@ -1057,21 +1055,25 @@ router.post(
           },
         });
 
-        // Create dispense items
-        for (const item of dispenseItems) {
-          await tx.dispensingItem.create({
-            data: {
-              id: undefined,
-              dispenseId: dispense.id,
-              ...item,
-            },
-          });
-        }
+        // Batch create dispense items
+        await tx.dispensingItem.createMany({
+          data: dispenseItems.map(item => ({
+            dispenseId: dispense.id,
+            medicineId: item.medicineId,
+            quantity: item.quantity,
+            batchNumber: item.batchNumber,
+            expiryDate: item.expiryDate,
+            rate: item.rate,
+            amount: item.amount,
+            originalMedicineId: item.originalMedicineId,
+            substitutionType: item.substitutionType,
+            substitutionReason: item.substitutionReason,
+          })),
+        });
 
         // Create bill
         const bill = await tx.pharmacyBill.create({
           data: {
-            id: undefined,
             hospitalId,
             patientId,
             prescriptionId,
@@ -1087,39 +1089,43 @@ router.post(
           },
         });
 
-        // Create bill items
-        for (const item of billItems) {
-          await tx.pharmacyBillItem.create({
-            data: {
-              id: undefined,
-              billId: bill.id,
-              ...item,
-            },
-          });
-        }
+        // Batch create bill items
+        await tx.pharmacyBillItem.createMany({
+          data: billItems.map(item => ({
+            billId: bill.id,
+            medicineId: item.medicineId,
+            medicineName: item.medicineName,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            batchNumber: item.batchNumber,
+            expiryDate: item.expiryDate,
+          })),
+        });
 
-        // Update inventory and log transactions
+        // Batch create stock transactions data
+        const stockTxData = stockUpdates.map(update => ({
+          hospitalId,
+          medicineId: update.medicineId,
+          inventoryId: update.inventoryId,
+          transactionType: 'OUT',
+          quantity: update.quantity,
+          referenceType: 'prescription',
+          referenceId: dispense.id,
+          notes: `Dispensed - ${dispenseNumber}`,
+          createdBy: pharmacistId,
+        }));
+
+        // Update inventory (sequential — each is a single fast update)
         for (const update of stockUpdates) {
           await tx.inventory.update({
             where: { id: update.inventoryId },
             data: { quantity: { decrement: update.quantity } },
           });
-
-          await tx.pharmacyStockTransaction.create({
-            data: {
-              id: undefined,
-              hospitalId,
-              medicineId: update.medicineId,
-              inventoryId: update.inventoryId,
-              transactionType: 'OUT',
-              quantity: update.quantity,
-              referenceType: 'prescription',
-              referenceId: dispense.id,
-              notes: `Dispensed - ${dispenseNumber}`,
-              createdBy: pharmacistId,
-            },
-          });
         }
+
+        // Batch create all stock transactions in one call
+        await tx.pharmacyStockTransaction.createMany({ data: stockTxData });
 
         // Update prescription status
         if (prescriptionId) {
@@ -1128,17 +1134,16 @@ router.post(
             data: { status: 'dispensed' },
           });
 
-          // Update prescription items as dispensed
-          for (const item of items) {
-            if (item.prescriptionItemId) {
-              await tx.prescriptionItem.update({
-                where: { id: item.prescriptionItemId },
-                data: { 
-                  isDispensed: true,
-                  dispensedQuantity: item.quantity,
-                },
-              });
-            }
+          const rxItemsToUpdate = items.filter((item: any) => item.prescriptionItemId);
+          if (rxItemsToUpdate.length > 0) {
+            await Promise.all(
+              rxItemsToUpdate.map((item: any) =>
+                tx.prescriptionItem.update({
+                  where: { id: item.prescriptionItemId },
+                  data: { isDispensed: true, dispensedQuantity: item.quantity },
+                })
+              )
+            );
           }
         }
 
@@ -1146,19 +1151,23 @@ router.post(
       });
 
       // Notify patient that prescription was dispensed
-      await prisma.notification.create({
-        data: {
-          hospitalId,
-          userId: patientId,
-          type: 'PRESCRIPTION_DISPENSED',
-          title: 'Prescription Filled',
-          message: `Your prescription has been dispensed. Bill number: ${result.billNumber}.`,
-          data: JSON.stringify({
-            dispenseId: result.dispense.id,
-            billNumber: result.billNumber,
-          }),
-        },
-      });
+      try {
+        await prisma.notification.create({
+          data: {
+            hospitalId,
+            patientId,
+            type: 'PRESCRIPTION_DISPENSED',
+            title: 'Prescription Filled',
+            message: `Your prescription has been dispensed. Bill number: ${result.billNumber}.`,
+            data: JSON.stringify({
+              dispenseId: result.dispense.id,
+              billNumber: result.billNumber,
+            }),
+          },
+        });
+      } catch (notifError) {
+        console.error('[Pharmacy] Failed to create dispense notification:', notifError);
+      }
 
       if (io) {
         io.to(`user:${patientId}`).emit('notification', {

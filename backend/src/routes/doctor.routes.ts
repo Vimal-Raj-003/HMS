@@ -80,7 +80,7 @@ router.get('/dashboard-stats', authenticate, authorize('DOCTOR'), async (req: Re
     const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
     const istDate = new Date(now.getTime() + istOffset);
     const today = new Date(istDate.toISOString().split('T')[0] + 'T00:00:00.000Z');
-    const currentTimeIST = istDate.toTimeString().slice(0, 5);
+    const currentTimeIST = `${String(istDate.getUTCHours()).padStart(2, '0')}:${String(istDate.getUTCMinutes()).padStart(2, '0')}`;
     
     console.log('[Doctor Dashboard] Doctor ID:', doctorId);
     console.log('[Doctor Dashboard] Current UTC time:', now.toISOString());
@@ -349,14 +349,67 @@ router.get('/queue', authenticate, authorize('DOCTOR'), async (req: Request, res
       });
     }
 
+    // Collect patientIds that have no vitals linked via appointment,
+    // so we can batch-fetch any orphaned vitals (recorded without appointmentId)
+    const patientsWithoutVitals = appointments
+      .filter(apt => !apt.vitals)
+      .map(apt => apt.patient.id);
+
+    // Batch-fetch orphaned vitals for today: recorded for these patients with no appointmentId
+    let orphanedVitalsMap = new Map<string, any>();
+    if (patientsWithoutVitals.length > 0) {
+      const orphanedVitals = await prisma.vitals.findMany({
+        where: {
+          patientId: { in: patientsWithoutVitals },
+          hospitalId: req.user!.hospitalId,
+          appointmentId: null,
+          recordedAt: {
+            gte: new Date(filterDate),
+            lt: new Date(filterDate.getTime() + 24 * 60 * 60 * 1000),
+          },
+        },
+        include: {
+          nurse: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+        orderBy: { recordedAt: 'desc' },
+      });
+      for (const v of orphanedVitals) {
+        // Keep only the latest per patient
+        if (!orphanedVitalsMap.has(v.patientId)) {
+          orphanedVitalsMap.set(v.patientId, v);
+        }
+      }
+    }
+
+    // Helper to format vitals object consistently
+    const formatVitals = (v: any) => ({
+      id: v.id,
+      temperature: v.temperature,
+      bloodPressureSystolic: v.bloodPressureSystolic,
+      bloodPressureDiastolic: v.bloodPressureDiastolic,
+      heartRate: v.heartRate,
+      respiratoryRate: v.respiratoryRate,
+      oxygenSaturation: v.oxygenSaturation,
+      weight: v.weight,
+      height: v.height,
+      notes: v.notes,
+      recordedAt: v.recordedAt,
+      recordedBy: v.nurse ? {
+        id: v.nurse.id,
+        name: `${v.nurse.firstName} ${v.nurse.lastName}`,
+      } : null,
+    });
+
     // Format the queue data
     const queueData = appointments.map((apt) => {
       const waitTime = apt.queueEntry
         ? Math.floor((new Date().getTime() - apt.queueEntry.createdAt.getTime()) / (1000 * 60))
         : 0;
 
-      // Vitals is a single object (one-to-one relation with appointment)
-      const v = apt.vitals;
+      // Vitals: prefer appointment-linked, fallback to orphaned vitals for this patient today
+      const v = apt.vitals || orphanedVitalsMap.get(apt.patient.id) || null;
 
       return {
         id: apt.queueEntry?.id || apt.id,
@@ -381,23 +434,7 @@ router.get('/queue', authenticate, authorize('DOCTOR'), async (req: Request, res
           weight: apt.patient.weight,
         },
         // Include nurse-recorded vitals
-        vitals: v ? {
-          id: v.id,
-          temperature: v.temperature,
-          bloodPressureSystolic: v.bloodPressureSystolic,
-          bloodPressureDiastolic: v.bloodPressureDiastolic,
-          heartRate: v.heartRate,
-          respiratoryRate: v.respiratoryRate,
-          oxygenSaturation: v.oxygenSaturation,
-          weight: v.weight,
-          height: v.height,
-          notes: v.notes,
-          recordedAt: v.recordedAt,
-          recordedBy: v.nurse ? {
-            id: v.nurse.id,
-            name: `${v.nurse.firstName} ${v.nurse.lastName}`,
-          } : null,
-        } : null,
+        vitals: v ? formatVitals(v) : null,
       };
     });
 
@@ -425,7 +462,7 @@ router.get('/appointments/upcoming', authenticate, authorize('DOCTOR'), async (r
     const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
     const istDate = new Date(now.getTime() + istOffset);
     const today = new Date(istDate.toISOString().split('T')[0] + 'T00:00:00.000Z');
-    const currentTimeIST = istDate.toTimeString().slice(0, 5);
+    const currentTimeIST = `${String(istDate.getUTCHours()).padStart(2, '0')}:${String(istDate.getUTCMinutes()).padStart(2, '0')}`;
 
     console.log('[Doctor Portal] Fetching upcoming appointments for doctor:', doctorId);
     console.log('[Doctor Portal] Today:', today.toISOString(), 'Current time IST:', currentTimeIST);
@@ -595,45 +632,86 @@ router.post(
         ? `Dr. ${affectedAppointments[0].doctor.firstName} ${affectedAppointments[0].doctor.lastName}`
         : doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Your doctor';
 
-      // Create notifications for all affected patients
-      const notificationPromises = affectedAppointments.map((appointment) => {
-        const formattedDate = appointment.appointmentDate.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
+      if (affectedAppointments.length > 0) {
+        const affectedIds = affectedAppointments.map(a => a.id);
 
-        return prisma.notification.create({
+        // 1. Cancel all affected appointments
+        await prisma.appointment.updateMany({
+          where: { id: { in: affectedIds } },
           data: {
-            id: undefined,
-            hospitalId,
-            patientId: appointment.patientId,
-            type: 'APPOINTMENT',
-            title: 'Doctor Unavailable',
-            message: `${doctorName} is unavailable on ${formattedDate}. Your appointment at ${appointment.startTime} has been affected. ${reason ? `Reason: ${reason}` : ''}`,
-            data: JSON.stringify({
-              type: 'DOCTOR_UNAVAILABLE',
-              appointmentId: appointment.id,
-              doctorId,
-              doctorName,
-              appointmentDate: appointment.appointmentDate.toISOString(),
-              appointmentTime: appointment.startTime,
-              reason: reason || null,
-            }),
-            isRead: false,
+            status: 'CANCELLED',
+            cancelledReason: `Doctor unavailable${reason ? ': ' + reason : ''}`,
+            cancelledAt: new Date(),
           },
         });
-      });
 
-      await Promise.all(notificationPromises);
+        // 2. Cancel associated queue entries (prevent orphan records)
+        await prisma.queueEntry.updateMany({
+          where: {
+            appointmentId: { in: affectedIds },
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          data: {
+            status: 'CANCELLED',
+          },
+        });
+
+        // 3. Create notifications + emit real-time alerts for each patient
+        const notificationPromises = affectedAppointments.map((appointment) => {
+          const formattedDate = appointment.appointmentDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          });
+
+          const message = `Your appointment with ${doctorName} on ${formattedDate} at ${appointment.startTime} has been cancelled. ${reason ? `Reason: ${reason}. ` : ''}Please book a new appointment at your convenience.`;
+
+          const notifData = {
+            type: 'APPOINTMENT_CANCELLED',
+            appointmentId: appointment.id,
+            doctorId,
+            doctorName,
+            appointmentDate: appointment.appointmentDate.toISOString(),
+            appointmentTime: appointment.startTime,
+            reason: reason || null,
+          };
+
+          // Real-time notification via Socket.IO
+          if (io) {
+            io.to(`user:${appointment.patientId}`).emit('notification', {
+              type: 'APPOINTMENT_CANCELLED',
+              title: 'Appointment Cancelled',
+              message,
+              data: notifData,
+            });
+          }
+
+          return prisma.notification.create({
+            data: {
+              id: undefined,
+              hospitalId,
+              patientId: appointment.patientId,
+              type: 'APPOINTMENT',
+              title: 'Appointment Cancelled',
+              message,
+              data: JSON.stringify(notifData),
+              isRead: false,
+            },
+          });
+        });
+
+        await Promise.all(notificationPromises);
+      }
 
       console.log(`[Doctor Schedule] Time-off created for ${doctorName} from ${startDate} to ${endDate}`);
-      console.log(`[Doctor Schedule] Created ${affectedAppointments.length} notifications for affected patients`);
+      console.log(`[Doctor Schedule] ${affectedAppointments.length} appointments cancelled and patients notified`);
 
       res.status(201).json({
         success: true,
-        message: 'Time-off added successfully',
+        message: affectedAppointments.length > 0
+          ? `Time-off added. ${affectedAppointments.length} appointment(s) have been cancelled and patients notified.`
+          : 'Time-off added successfully',
         data: timeOff,
         affectedAppointments: affectedAppointments.length,
       });

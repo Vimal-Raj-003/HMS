@@ -316,42 +316,46 @@ export default function DashboardLayout() {
             </div>
           </div>
 
-          {/* Center Section - Search Bar */}
-          <div className="hidden md:flex flex-1 justify-center px-8">
-            <form onSubmit={handleSearch} className="w-full max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-search-icon)' }} />
-                <input
-                  type="text"
-                  placeholder="Search patients, appointments..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all duration-200 focus:outline-none focus:ring-2"
-                  style={{
-                    backgroundColor: 'var(--color-search-bg)',
-                    border: '1px solid transparent',
-                    color: 'var(--color-text-primary)',
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.backgroundColor = 'var(--color-bg-card)';
-                    e.target.style.borderColor = '#2563EB';
-                    e.target.style.setProperty('--tw-ring-color', 'rgba(37, 99, 235, 0.15)');
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.backgroundColor = 'var(--color-search-bg)';
-                    e.target.style.borderColor = 'transparent';
-                  }}
-                />
-              </div>
-            </form>
-          </div>
+          {/* Center Section - Search Bar (hidden for patients — no search functionality) */}
+          {user?.role !== 'PATIENT' && (
+            <div className="hidden md:flex flex-1 justify-center px-8">
+              <form onSubmit={handleSearch} className="w-full max-w-md">
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-search-icon)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search patients, appointments..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all duration-200 focus:outline-none focus:ring-2"
+                    style={{
+                      backgroundColor: 'var(--color-search-bg)',
+                      border: '1px solid transparent',
+                      color: 'var(--color-text-primary)',
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.backgroundColor = 'var(--color-bg-card)';
+                      e.target.style.borderColor = '#2563EB';
+                      e.target.style.setProperty('--tw-ring-color', 'rgba(37, 99, 235, 0.15)');
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.backgroundColor = 'var(--color-search-bg)';
+                      e.target.style.borderColor = 'transparent';
+                    }}
+                  />
+                </div>
+              </form>
+            </div>
+          )}
 
           {/* Right Section - Actions */}
           <div className="flex items-center gap-2 ml-auto">
-            {/* Mobile Search Button */}
-            <button className="md:hidden p-2.5 rounded-xl transition-colors duration-150" style={{ color: 'var(--color-text-secondary)' }}>
-              <Search className="w-5 h-5" />
-            </button>
+            {/* Mobile Search Button (hidden for patients) */}
+            {user?.role !== 'PATIENT' && (
+              <button className="md:hidden p-2.5 rounded-xl transition-colors duration-150" style={{ color: 'var(--color-text-secondary)' }}>
+                <Search className="w-5 h-5" />
+              </button>
+            )}
 
             {/* Theme Toggle */}
             <button

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Calendar,
   User,
@@ -67,6 +67,7 @@ const getStatusBadge = (status: string) => {
 
 export default function PatientDashboard() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -98,7 +99,7 @@ export default function PatientDashboard() {
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* Dashboard Cards - Total Appointments, Patient ID, and Book Appointment */}
-      <div className="hms-stats-grid">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           title="Total Appointments"
           value={totalAppointments}
@@ -119,7 +120,7 @@ export default function PatientDashboard() {
           icon={<Plus className="w-6 h-6" />}
           color="green"
           subtitle="Book a new appointment"
-          onClick={() => window.location.href = '/patient/book'}
+          onClick={() => navigate('/patient/book')}
         />
       </div>
 

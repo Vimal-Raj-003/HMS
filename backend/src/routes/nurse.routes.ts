@@ -26,9 +26,12 @@ const validate = (req: Request, res: Response, next: NextFunction) => {
 router.get('/dashboard-stats', authenticate, authorize('NURSE'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const hospitalId = req.user!.hospitalId;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use IST-based today for consistent date handling across all modules
     const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const nowIST = new Date(now.getTime() + istOffset);
+    const todayStr = nowIST.toISOString().split('T')[0];
+    const today = new Date(todayStr + 'T00:00:00.000Z');
     const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
 
     // Get total patients today (appointments scheduled today)
@@ -180,7 +183,7 @@ router.get('/dashboard-stats', authenticate, authorize('NURSE'), async (req: Req
 });
 
 // @route   GET /api/nurse/patients/search
-// @desc    Search patients for nurse
+// @desc    Search patients for nurse (multi-field, partial match)
 // @access  Private (Nurse)
 router.get(
   '/patients/search',
@@ -188,33 +191,56 @@ router.get(
   authorize('NURSE'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { type, query } = req.query;
+      const { type, query: searchQuery } = req.query;
       const hospitalId = req.user!.hospitalId;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const search = (searchQuery as string || '').trim();
+
+      if (!search) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // Use IST-based today for consistent date handling
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const nowIST = new Date(now.getTime() + istOffset);
+      const todayStr = nowIST.toISOString().split('T')[0];
+      const todayStart = new Date(todayStr + 'T00:00:00.000Z');
+      const todayEnd = new Date(todayStr + 'T23:59:59.999Z');
 
       let patients: any[] = [];
 
       if (type === 'doctorName' || type === 'doctorId') {
-        // Search by doctor - find appointments for this doctor
-        const doctorWhere: any = { hospitalId };
-        
+        // Search by doctor — find today's appointments for matching doctor
+        const doctorWhere: any = { hospitalId, role: 'DOCTOR' };
+
         if (type === 'doctorId') {
-          doctorWhere.id = query as string;
-        } else {
+          // Partial match on doctor ID or exact match
           doctorWhere.OR = [
-            { firstName: { contains: query as string, mode: 'insensitive' } },
-            { lastName: { contains: query as string, mode: 'insensitive' } },
+            { id: search },
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
           ];
+        } else {
+          // Doctor name: split to handle "John Doe" as firstName+lastName
+          const parts = search.split(/\s+/).filter(Boolean);
+          if (parts.length >= 2) {
+            doctorWhere.AND = [
+              { firstName: { contains: parts[0], mode: 'insensitive' } },
+              { lastName: { contains: parts.slice(1).join(' '), mode: 'insensitive' } },
+            ];
+          } else {
+            doctorWhere.OR = [
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } },
+            ];
+          }
         }
 
         const appointments = await prisma.appointment.findMany({
           where: {
             hospitalId,
-            appointmentDate: {
-              gte: today,
-              lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
-            },
+            appointmentDate: { gte: todayStart, lte: todayEnd },
+            status: { not: 'CANCELLED' },
             doctor: doctorWhere,
           },
           include: {
@@ -239,6 +265,7 @@ router.get(
               },
             },
           },
+          take: 30,
         });
 
         patients = appointments.map((apt) => ({
@@ -252,18 +279,38 @@ router.get(
           },
         }));
       } else {
-        // Search by patient info
+        // Search by patient info (phone, name, id)
         const whereClause: any = { hospitalId };
 
         if (type === 'phone') {
-          whereClause.phone = { contains: query as string };
+          // Strip common prefixes for flexible matching
+          const cleanPhone = search.replace(/[\s\-()]/g, '').replace(/^\+?91/, '');
+          whereClause.phone = { contains: cleanPhone, mode: 'insensitive' };
         } else if (type === 'name') {
-          whereClause.OR = [
-            { firstName: { contains: query as string, mode: 'insensitive' } },
-            { lastName: { contains: query as string, mode: 'insensitive' } },
-          ];
+          // Split to handle full name "John Doe"
+          const parts = search.split(/\s+/).filter(Boolean);
+          if (parts.length >= 2) {
+            whereClause.AND = [
+              { firstName: { contains: parts[0], mode: 'insensitive' } },
+              { lastName: { contains: parts.slice(1).join(' '), mode: 'insensitive' } },
+            ];
+          } else {
+            whereClause.OR = [
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } },
+            ];
+          }
         } else if (type === 'id') {
-          whereClause.patientNumber = { contains: query as string };
+          whereClause.patientNumber = { contains: search, mode: 'insensitive' };
+        } else {
+          // No type specified — search across all patient fields
+          const cleanPhone = search.replace(/[\s\-()]/g, '').replace(/^\+?91/, '');
+          whereClause.OR = [
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: cleanPhone, mode: 'insensitive' } },
+            { patientNumber: { contains: search, mode: 'insensitive' } },
+          ];
         }
 
         const patientResults = await prisma.patient.findMany({
@@ -281,16 +328,13 @@ router.get(
           },
         });
 
-        // Get today's appointment for each patient
-        const patientsWithAppointments = await Promise.all(
-          patientResults.map(async (patient) => {
-            const appointment = await prisma.appointment.findFirst({
+        // Get today's appointment for each patient (single batch query)
+        const patientIds = patientResults.map(p => p.id);
+        const todaysAppointments = patientIds.length > 0
+          ? await prisma.appointment.findMany({
               where: {
-                patientId: patient.id,
-                appointmentDate: {
-                  gte: today,
-                  lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
-                },
+                patientId: { in: patientIds },
+                appointmentDate: { gte: todayStart, lte: todayEnd },
                 status: { not: 'CANCELLED' },
               },
               include: {
@@ -303,21 +347,31 @@ router.get(
                   },
                 },
               },
-            });
-            return {
-              ...patient,
-              appointment: appointment ? {
-                id: appointment.id,
-                appointmentDate: appointment.appointmentDate,
-                appointmentTime: appointment.startTime,
-                status: appointment.status,
-                doctor: appointment.doctor,
-              } : null,
-            };
-          })
-        );
+            })
+          : [];
 
-        patients = patientsWithAppointments;
+        // Index appointments by patientId
+        const appointmentByPatient = new Map<string, typeof todaysAppointments[0]>();
+        for (const apt of todaysAppointments) {
+          // Keep the latest appointment per patient
+          if (!appointmentByPatient.has(apt.patientId)) {
+            appointmentByPatient.set(apt.patientId, apt);
+          }
+        }
+
+        patients = patientResults.map((patient) => {
+          const apt = appointmentByPatient.get(patient.id);
+          return {
+            ...patient,
+            appointment: apt ? {
+              id: apt.id,
+              appointmentDate: apt.appointmentDate,
+              appointmentTime: apt.startTime,
+              status: apt.status,
+              doctor: apt.doctor,
+            } : null,
+          };
+        });
       }
 
       res.json({
@@ -381,16 +435,21 @@ router.get(
   authorize('NURSE'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Use IST-based today for consistent date handling across all modules
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const nowIST = new Date(now.getTime() + istOffset);
+      const todayStr = nowIST.toISOString().split('T')[0];
+      const todayStart = new Date(todayStr + 'T00:00:00.000Z');
+      const todayEnd = new Date(todayStr + 'T23:59:59.999Z');
 
       const appointments = await prisma.appointment.findMany({
         where: {
           patientId: req.params.id,
           hospitalId: req.user!.hospitalId,
           appointmentDate: {
-            gte: today,
-            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+            gte: todayStart,
+            lte: todayEnd,
           },
           status: { not: 'CANCELLED' },
         },

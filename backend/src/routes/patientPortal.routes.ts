@@ -63,17 +63,25 @@ function filterPastSlots(slots: string[], dateStr: string): { slot: string; isAv
   const now = new Date();
   const istOffset = 5.5 * 60 * 60 * 1000;
   const nowIST = new Date(now.getTime() + istOffset);
+  // Use UTC methods on the IST-shifted date to get correct IST values
   const todayStr = nowIST.toISOString().split('T')[0];
-  const currentTimeStr = nowIST.toTimeString().slice(0, 5);
+  const currentTimeStr = `${String(nowIST.getUTCHours()).padStart(2, '0')}:${String(nowIST.getUTCMinutes()).padStart(2, '0')}`;
 
   return slots.map(slot => {
     let isAvailable = true;
     if (dateStr === todayStr) {
-      // For today, mark past slots as unavailable
+      // For today, mark past slots as unavailable (slot must be strictly in the future)
       isAvailable = slot > currentTimeStr;
     }
     return { slot, isAvailable };
   });
+}
+
+// Helper: parse "YYYY-MM-DD" to Date at noon UTC (prevents timezone day-shift)
+function parseDateOnly(dateStr: string): Date {
+  if (dateStr.includes('T')) return new Date(dateStr);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 }
 
 // @route   GET /api/patient/doctors
@@ -85,8 +93,8 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const hospitalId = req.user!.hospitalId;
-      
-      // Get all active doctors
+
+      // Get all active doctors with availability fields
       const doctors = await prisma.user.findMany({
         where: {
           hospitalId,
@@ -100,6 +108,8 @@ router.get(
           specialty: true,
           consultationFee: true,
           qualifications: true,
+          availableDays: true,
+          availableHours: true,
         },
         orderBy: [
           { specialty: 'asc' },
@@ -107,35 +117,103 @@ router.get(
         ],
       });
 
+      // Fetch all time-offs for the next 15 days for all doctors in one query
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const nowIST = new Date(now.getTime() + istOffset);
+      const todayStr = nowIST.toISOString().split('T')[0];
+      const todayDate = parseDateOnly(todayStr);
+
+      const futureDate = new Date(todayDate);
+      futureDate.setUTCDate(futureDate.getUTCDate() + 15);
+
+      const doctorIds = doctors.map(d => d.id);
+      const allTimeOffs = await prisma.doctorTimeOff.findMany({
+        where: {
+          doctorId: { in: doctorIds },
+          endDate: { gte: todayDate },
+          startDate: { lte: futureDate },
+        },
+        select: {
+          doctorId: true,
+          startDate: true,
+          endDate: true,
+        },
+      });
+
+      // Index time-offs by doctorId for fast lookup
+      const timeOffsByDoctor = new Map<string, typeof allTimeOffs>();
+      for (const to of allTimeOffs) {
+        const list = timeOffsByDoctor.get(to.doctorId) || [];
+        list.push(to);
+        timeOffsByDoctor.set(to.doctorId, list);
+      }
+
       // Generate all possible time slots (15-minute intervals)
       const allSlots = generateTimeSlots();
 
-      // Generate available slots for next 15 days
-      const today = new Date();
-      const availableSlots: { date: string; dayOfWeek: string; slots: { slot: string; isAvailable: boolean }[] }[] = [];
-      
-      for (let i = 0; i < 15; i++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-        
-        // Filter past slots for today
-        const slotsWithAvailability = filterPastSlots(allSlots, dateStr);
-        
-        availableSlots.push({
-          date: dateStr,
-          dayOfWeek,
-          slots: slotsWithAvailability,
-        });
-      }
+      // Build per-doctor available slots for next 15 days
+      const doctorsWithSlots = doctors.map(doctor => {
+        const availableDays: string[] = doctor.availableDays
+          ? JSON.parse(doctor.availableDays)
+          : [];
+        const doctorTimeOffs = timeOffsByDoctor.get(doctor.id) || [];
 
-      // Add available slots to each doctor
-      const doctorsWithSlots = doctors.map(doctor => ({
-        ...doctor,
-        specialization: doctor.specialty || 'General Medicine',
-        availableSlots,
-      }));
+        const availableSlots: { date: string; dayOfWeek: string; slots: { slot: string; isAvailable: boolean }[] }[] = [];
+
+        for (let i = 0; i < 15; i++) {
+          const date = new Date(todayDate);
+          date.setUTCDate(date.getUTCDate() + i);
+          const dateStr = date.toISOString().split('T')[0];
+          const dayOfWeekShort = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }).toUpperCase();
+          const dayOfWeekFull = date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }).toLowerCase();
+
+          // Check 1: Doctor's working days
+          if (availableDays.length > 0 && !availableDays.includes(dayOfWeekFull)) {
+            availableSlots.push({
+              date: dateStr,
+              dayOfWeek: dayOfWeekShort,
+              slots: allSlots.map(s => ({ slot: s, isAvailable: false })),
+            });
+            continue;
+          }
+
+          // Check 2: Doctor time-off
+          const isOnLeave = doctorTimeOffs.some(to => {
+            const start = to.startDate.toISOString().split('T')[0];
+            const end = to.endDate.toISOString().split('T')[0];
+            return dateStr >= start && dateStr <= end;
+          });
+
+          if (isOnLeave) {
+            availableSlots.push({
+              date: dateStr,
+              dayOfWeek: dayOfWeekShort,
+              slots: allSlots.map(s => ({ slot: s, isAvailable: false })),
+            });
+            continue;
+          }
+
+          // Default: filter past slots for today
+          const slotsWithAvailability = filterPastSlots(allSlots, dateStr);
+          availableSlots.push({
+            date: dateStr,
+            dayOfWeek: dayOfWeekShort,
+            slots: slotsWithAvailability,
+          });
+        }
+
+        return {
+          id: doctor.id,
+          firstName: doctor.firstName,
+          lastName: doctor.lastName,
+          specialty: doctor.specialty,
+          consultationFee: doctor.consultationFee,
+          qualifications: doctor.qualifications,
+          specialization: doctor.specialty || 'General Medicine',
+          availableSlots,
+        };
+      });
 
       res.json({
         success: true,
@@ -236,7 +314,7 @@ router.post(
       const istOffset = 5.5 * 60 * 60 * 1000;
       const nowIST = new Date(now.getTime() + istOffset);
       const todayStr = nowIST.toISOString().split('T')[0];
-      const currentTimeStr = nowIST.toTimeString().slice(0, 5);
+      const currentTimeStr = `${String(nowIST.getUTCHours()).padStart(2, '0')}:${String(nowIST.getUTCMinutes()).padStart(2, '0')}`;
       if (date === todayStr && time <= currentTimeStr) {
         throw ApiError.badRequest('Cannot book appointments in the past. Please select a future time slot', 'PAST_TIME');
       }
@@ -249,6 +327,15 @@ router.post(
           role: 'DOCTOR',
           isActive: true,
         },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          specialty: true,
+          consultationFee: true,
+          availableDays: true,
+          availableHours: true,
+        },
       });
 
       if (!doctor) {
@@ -257,6 +344,39 @@ router.post(
       }
 
       console.log('[Patient Portal] Doctor verified:', doctor.firstName, doctor.lastName);
+
+      // Validate doctor is available on requested day-of-week
+      const requestedDate = parseDateOnly(date);
+      const availableDays: string[] = doctor.availableDays
+        ? JSON.parse(doctor.availableDays)
+        : [];
+      if (availableDays.length > 0) {
+        const dayOfWeek = requestedDate
+          .toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })
+          .toLowerCase();
+        if (!availableDays.includes(dayOfWeek)) {
+          throw ApiError.badRequest(
+            'Doctor is not available on this day. Please select another date',
+            'DOCTOR_NOT_AVAILABLE_DAY'
+          );
+        }
+      }
+
+      // Validate doctor has no time-off on requested date
+      const timeOff = await prisma.doctorTimeOff.findFirst({
+        where: {
+          doctorId,
+          startDate: { lte: requestedDate },
+          endDate: { gte: requestedDate },
+        },
+      });
+
+      if (timeOff) {
+        throw ApiError.badRequest(
+          'Doctor is unavailable on this date. Please select another date',
+          'DOCTOR_ON_LEAVE'
+        );
+      }
 
       // Check if slot is already booked
       const existingAppointment = await prisma.appointment.findFirst({
@@ -399,7 +519,7 @@ router.get(
         throw ApiError.badRequest('Date is required', 'DATE_REQUIRED');
       }
 
-      // Verify doctor exists and is active
+      // Verify doctor exists and is active — include availability fields
       const doctor = await prisma.user.findFirst({
         where: {
           id: doctorId,
@@ -413,6 +533,8 @@ router.get(
           lastName: true,
           specialty: true,
           consultationFee: true,
+          availableDays: true,
+          availableHours: true,
         },
       });
 
@@ -420,11 +542,71 @@ router.get(
         throw ApiError.notFound('Doctor not found', 'DOCTOR_NOT_FOUND');
       }
 
-      // Get all booked slots for this doctor on this date
+      const doctorInfo = {
+        id: doctor.id,
+        name: `Dr. ${doctor.firstName} ${doctor.lastName}`,
+        specialization: doctor.specialty || 'General Medicine',
+        consultationFee: doctor.consultationFee,
+      };
+
+      const requestedDate = parseDateOnly(date as string);
+
+      // Check 1: Doctor's working days (availableDays)
+      const availableDays: string[] = doctor.availableDays
+        ? JSON.parse(doctor.availableDays)
+        : [];
+      if (availableDays.length > 0) {
+        const dayOfWeek = requestedDate
+          .toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })
+          .toLowerCase();
+        if (!availableDays.includes(dayOfWeek)) {
+          return res.json({
+            success: true,
+            data: {
+              doctor: doctorInfo,
+              date,
+              slots: [],
+              message: 'Doctor is not available on this day',
+            },
+          });
+        }
+      }
+
+      // Check 2: Doctor time-off
+      const timeOff = await prisma.doctorTimeOff.findFirst({
+        where: {
+          doctorId,
+          startDate: { lte: requestedDate },
+          endDate: { gte: requestedDate },
+        },
+      });
+
+      if (timeOff) {
+        return res.json({
+          success: true,
+          data: {
+            doctor: doctorInfo,
+            date,
+            slots: [],
+            message: 'Doctor is unavailable on this date',
+            reason: timeOff.reason,
+          },
+        });
+      }
+
+      // Check 3: Get booked appointments using date range (handles noon-UTC storage)
+      const startOfDay = new Date(requestedDate);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(requestedDate);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+
       const bookedAppointments = await prisma.appointment.findMany({
         where: {
           doctorId,
-          appointmentDate: new Date(date as string),
+          appointmentDate: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
           status: {
             notIn: ['CANCELLED', 'NO_SHOW'],
           },
@@ -436,11 +618,31 @@ router.get(
 
       const bookedSlots = new Set(bookedAppointments.map(apt => apt.startTime));
 
-      // Generate all possible time slots
-      const allSlots = generateTimeSlots();
-      
+      // Generate slots respecting doctor's availableHours
+      const availableHours = doctor.availableHours
+        ? JSON.parse(doctor.availableHours)
+        : { morning: { start: '09:00', end: '13:00' }, evening: { start: '14:00', end: '20:00' } };
+
+      const doctorSlots: string[] = [];
+      const generateSlotsForRange = (start: string, end: string) => {
+        let current = start;
+        while (current < end) {
+          doctorSlots.push(current);
+          const [h, m] = current.split(':').map(Number);
+          const newM = m + 15;
+          current = `${String(h + Math.floor(newM / 60)).padStart(2, '0')}:${String(newM % 60).padStart(2, '0')}`;
+        }
+      };
+      if (availableHours.morning) generateSlotsForRange(availableHours.morning.start, availableHours.morning.end);
+      if (availableHours.evening) generateSlotsForRange(availableHours.evening.start, availableHours.evening.end);
+      // If no custom hours configured, fall back to default
+      if (doctorSlots.length === 0) {
+        generateSlotsForRange('09:00', '13:00');
+        generateSlotsForRange('14:00', '20:00');
+      }
+
       // Filter past slots and mark booked slots
-      const slotsWithAvailability = filterPastSlots(allSlots, date as string).map(({ slot, isAvailable }) => ({
+      const slotsWithAvailability = filterPastSlots(doctorSlots, date as string).map(({ slot, isAvailable }) => ({
         slot,
         isAvailable: isAvailable && !bookedSlots.has(slot),
       }));
@@ -448,12 +650,7 @@ router.get(
       res.json({
         success: true,
         data: {
-          doctor: {
-            id: doctor.id,
-            name: `Dr. ${doctor.firstName} ${doctor.lastName}`,
-            specialization: doctor.specialty || 'General Medicine',
-            consultationFee: doctor.consultationFee,
-          },
+          doctor: doctorInfo,
           date,
           slots: slotsWithAvailability,
         },
@@ -514,7 +711,7 @@ router.get(
       const istOffset = 5.5 * 60 * 60 * 1000;
       const nowIST = new Date(now.getTime() + istOffset);
       const todayMidnight = new Date(nowIST.toISOString().split('T')[0] + 'T00:00:00.000Z');
-      const currentTimeStr = nowIST.toTimeString().slice(0, 5);
+      const currentTimeStr = `${String(nowIST.getUTCHours()).padStart(2, '0')}:${String(nowIST.getUTCMinutes()).padStart(2, '0')}`;
 
       console.log('[Patient Portal] Fetching upcoming appointments for patient:', patientId);
 

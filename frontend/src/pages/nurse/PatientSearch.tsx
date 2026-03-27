@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Search,
@@ -47,6 +47,8 @@ export default function PatientSearch() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const searchTypeOptions = [
     { value: 'phone', label: 'Phone', icon: Phone },
     { value: 'name', label: 'Name', icon: User },
@@ -55,18 +57,17 @@ export default function PatientSearch() {
     { value: 'doctorId', label: 'Doctor ID', icon: IdCard },
   ];
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchTerm.trim()) return;
-
+  const executeSearch = useCallback(async (term: string, type: string) => {
+    if (!term.trim()) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
     setLoading(true);
     setSearched(true);
     try {
       const response = await api.get(`/nurse/patients/search`, {
-        params: {
-          type: searchType,
-          query: searchTerm,
-        },
+        params: { type, query: term },
       });
       setResults(response.data || []);
     } catch (error) {
@@ -75,6 +76,26 @@ export default function PatientSearch() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Debounced auto-search: triggers 400ms after user stops typing
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!searchTerm.trim()) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      executeSearch(searchTerm, searchType);
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm, searchType, executeSearch]);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    executeSearch(searchTerm, searchType);
   };
 
   const handlePatientSelect = (patient: Patient) => {
