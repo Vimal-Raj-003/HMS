@@ -87,7 +87,8 @@ export default function PatientLogin() {
       const response = await authAPI.verifyOTP(data.mobileNumber, data.otp);
       const { user, accessToken, refreshToken, isNewUser } = response.data;
 
-      setAuth(user, accessToken, refreshToken);
+      // Patient OTP login — always session-scoped (no "Remember Me")
+      setAuth(user, accessToken, refreshToken, false);
       localStorage.setItem('auth-token', accessToken);
 
       toast.success('Login successful!');

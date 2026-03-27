@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../../store/auth.store';
 import {
   Calendar,
   Shield,
@@ -55,11 +56,15 @@ const HeroSection = () => {
     return () => document.removeEventListener('click', handleClick);
   }, [isDropdownOpen]);
 
+  const { clearSession } = useAuthStore();
+
   const handleBookAppointment = () => {
+    clearSession();
     navigate('/patient-login');
   };
 
   const handleStaffLogin = () => {
+    clearSession();
     navigate('/login');
   };
 

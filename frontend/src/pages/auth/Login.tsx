@@ -13,6 +13,7 @@ interface LoginForm {
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
 
@@ -33,7 +34,7 @@ export default function Login() {
       const response = await authAPI.login(data.email, data.password);
       const { user, accessToken, refreshToken } = response.data;
 
-      setAuth(user, accessToken, refreshToken);
+      setAuth(user, accessToken, refreshToken, rememberMe);
       localStorage.setItem('auth-token', accessToken);
 
       toast.success('Login successful!');
@@ -462,6 +463,31 @@ export default function Login() {
                     {errors.password.message}
                   </p>
                 )}
+              </div>
+
+              {/* Remember Me */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div
+                      className="w-5 h-5 rounded-md border-2 transition-all duration-200 flex items-center justify-center peer-checked:border-[#2563EB] peer-checked:bg-[#2563EB] group-hover:border-[#94A3B8]"
+                      style={{ borderColor: rememberMe ? '#2563EB' : '#CBD5E1', backgroundColor: rememberMe ? '#2563EB' : 'transparent' }}
+                    >
+                      {rememberMe && (
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-sm" style={{ color: '#475569' }}>Remember me</span>
+                </label>
               </div>
 
               <button

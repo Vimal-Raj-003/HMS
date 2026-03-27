@@ -149,9 +149,8 @@ export default function DashboardLayout() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('auth-token');
     const isPatient = user?.role === 'PATIENT';
-    logout();
+    logout(); // Clears both localStorage keys + Zustand state
     navigate(isPatient ? '/patient-login' : '/login');
   };
 
