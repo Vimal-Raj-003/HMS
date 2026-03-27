@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { patientPortalAPI } from '../../lib/api';
+import { useAuthStore } from '../../store/auth.store';
 import { toast } from 'react-hot-toast';
 import { DocumentViewer } from '../../components/ui';
+import { printLabReport } from '../../lib/printLabReport';
 import {
   Download,
   Calendar,
@@ -13,15 +15,19 @@ import {
   ChevronDown,
   ChevronUp,
   FileDown,
-  Eye
+  Eye,
+  X,
+  FileText
 } from 'lucide-react';
 
 interface LabReport {
   id: string;
+  orderNumber?: string;
   date: string;
   testName: string;
   category: string;
   doctorName: string;
+  doctorSpecialty?: string;
   status: string;
   results: {
     parameter: string;
@@ -31,7 +37,6 @@ interface LabReport {
     interpretation: string;
   }[];
   notes?: string;
-  // New document fields
   reportFileUrl?: string;
   reportFileType?: string;
 }
@@ -85,13 +90,17 @@ const getInterpretationColor = (interpretation: string) => {
 };
 
 export default function LabReports() {
+  const { user } = useAuthStore();
   const [reports, setReports] = useState<LabReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState<LabReport | null>(null);
   const [filter, setFilter] = useState('all');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  
-  // Document viewer state
+
+  // Results viewer modal state (inline view - same data as Lab Dashboard)
+  const [viewingReport, setViewingReport] = useState<LabReport | null>(null);
+
+  // Document viewer state (for uploaded PDF/image files)
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<{
     fileUrl: string;
@@ -106,18 +115,17 @@ export default function LabReports() {
   const fetchReports = async () => {
     try {
       const response = await patientPortalAPI.getLabReports(filter !== 'all' ? filter : undefined);
-      // Only use data from the API - no dummy data fallback
-      // This ensures patient data isolation
       setReports(response.data || []);
     } catch (error: any) {
       console.error('Error fetching lab reports:', error);
       toast.error(error.response?.data?.message || 'Failed to load lab reports');
-      // Set empty reports on error - no dummy data
       setReports([]);
     } finally {
       setLoading(false);
     }
   };
+
+  const patientName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Patient';
 
   const handleViewReport = (report: LabReport) => {
     if (report.status !== 'COMPLETED') {
@@ -125,20 +133,22 @@ export default function LabReports() {
       return;
     }
 
-    if (!report.reportFileUrl) {
-      toast.error('Report file not available');
+    // If an uploaded file exists, open the document viewer
+    if (report.reportFileUrl) {
+      setViewingDocument({
+        fileUrl: report.reportFileUrl,
+        fileName: `${report.testName.replace(/\s+/g, '-').toLowerCase()}-report.pdf`,
+        fileType: report.reportFileType || 'application/pdf'
+      });
+      setViewerOpen(true);
       return;
     }
 
-    setViewingDocument({
-      fileUrl: report.reportFileUrl,
-      fileName: `${report.testName.replace(/\s+/g, '-').toLowerCase()}-report.pdf`,
-      fileType: report.reportFileType || 'application/pdf'
-    });
-    setViewerOpen(true);
+    // Otherwise show inline results modal (same data as Lab Dashboard Results view)
+    setViewingReport(report);
   };
 
-  const handleDownloadPDF = async (report: LabReport) => {
+  const handleDownloadPDF = (report: LabReport) => {
     if (report.status !== 'COMPLETED') {
       toast.error('Report is not yet available for download');
       return;
@@ -147,58 +157,38 @@ export default function LabReports() {
     setDownloadingId(report.id);
 
     try {
-      const fileUrl = report.reportFileUrl;
-      const fileName = `${report.testName.replace(/\s+/g, '-').toLowerCase()}-report.pdf`;
-      
-      if (!fileUrl) {
-        // Generate a PDF content for demo purposes
-        const content = `
-LAB REPORT
-==========
-
-Test Name: ${report.testName}
-Category: ${report.category}
-Date: ${new Date(report.date).toLocaleDateString()}
-Ordered By: Dr. ${report.doctorName}
-Status: ${report.status}
-
-RESULTS
--------
-${report.results.map(r => `${r.parameter}: ${r.value} ${r.unit} (Reference: ${r.referenceRange}) - ${r.interpretation}`).join('\n')}
-
-${report.notes ? `Notes: ${report.notes}` : ''}
-
----
-This is a demo lab report generated for demonstration purposes.
-        `.trim();
-
-        const blob = new Blob([content], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
+      // If an uploaded file exists, download it directly
+      if (report.reportFileUrl) {
         const a = window.document.createElement('a');
-        a.href = url;
-        a.download = fileName;
+        a.href = report.reportFileUrl;
+        a.download = `${report.testName.replace(/\s+/g, '-').toLowerCase()}-report.pdf`;
+        a.target = '_blank';
         window.document.body.appendChild(a);
         a.click();
         window.document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } else {
-        // Download the actual file
-        const response = await fetch(fileUrl);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = window.document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        window.document.body.appendChild(a);
-        a.click();
-        window.document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        toast.success('Report downloaded successfully!');
+        return;
       }
-      
-      toast.success('Report downloaded successfully!');
+
+      // Generate a structured lab report PDF using the same data shown in View
+      printLabReport({
+        orderNumber: report.orderNumber,
+        testName: report.testName,
+        category: report.category,
+        date: report.date,
+        doctorName: report.doctorName,
+        doctorSpecialty: report.doctorSpecialty,
+        status: report.status,
+        results: report.results,
+        notes: report.notes,
+        patientName,
+        patientId: user?.patientNumber,
+      });
+
+      toast.success('Report opened for printing/download');
     } catch (error: any) {
       console.error('Download error:', error);
-      toast.error('Failed to download report. Please try viewing it instead.');
+      toast.error('Failed to generate report.');
     } finally {
       setDownloadingId(null);
     }
@@ -456,7 +446,99 @@ This is a demo lab report generated for demonstration purposes.
         </div>
       </div>
 
-      {/* Document Viewer Modal */}
+      {/* Inline Results Viewer Modal - shows same data as Lab Dashboard Results */}
+      {viewingReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setViewingReport(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-[#2563EB]/5 to-[#14B8A6]/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#14B8A6]/10 flex items-center justify-center">
+                  <FlaskConical className="w-5 h-5 text-[#14B8A6]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">{viewingReport.testName}</h2>
+                  <p className="text-sm text-gray-500">
+                    {viewingReport.orderNumber && <span>{viewingReport.orderNumber} &bull; </span>}
+                    {new Date(viewingReport.date).toLocaleDateString()} &bull; Dr. {viewingReport.doctorName}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    handleDownloadPDF(viewingReport);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-lg font-medium hover:bg-[#2563EB]/90 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden sm:inline">Download PDF</span>
+                </button>
+                <button
+                  onClick={() => setViewingReport(null)}
+                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Results Table - mirrors Lab Dashboard EnterResults completed view */}
+            <div className="flex-1 overflow-auto p-6">
+              {viewingReport.results.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200">
+                        <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Parameter</th>
+                        <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Result</th>
+                        <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit</th>
+                        <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Reference Range</th>
+                        <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {viewingReport.results.map((result, index) => (
+                        <tr key={index} className="hover:bg-gray-50 transition-colors">
+                          <td className="py-3 px-2 text-sm font-medium text-gray-900">{result.parameter}</td>
+                          <td className="py-3 px-2 text-sm font-semibold text-gray-900">{result.value || '-'}</td>
+                          <td className="py-3 px-2 text-sm text-gray-500">{result.unit || '-'}</td>
+                          <td className="py-3 px-2 text-sm text-gray-500">{result.referenceRange || '-'}</td>
+                          <td className="py-3 px-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getInterpretationColor(result.interpretation)}`}>
+                              {result.interpretation}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FlaskConical className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No result data available yet.</p>
+                </div>
+              )}
+
+              {viewingReport.notes && (
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">Clinical Notes</p>
+                      <p className="text-sm text-blue-700 mt-0.5">{viewingReport.notes}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Viewer Modal (for uploaded PDF/image files) */}
       {viewerOpen && viewingDocument && (
         <DocumentViewer
           isOpen={viewerOpen}

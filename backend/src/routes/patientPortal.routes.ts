@@ -1077,6 +1077,7 @@ router.get(
             select: {
               firstName: true,
               lastName: true,
+              specialty: true,
             },
           },
           items: {
@@ -1090,6 +1091,14 @@ router.get(
               },
             },
           },
+          results: {
+            select: {
+              fileUrl: true,
+              fileType: true,
+            },
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -1097,7 +1106,7 @@ router.get(
       });
 
       const formattedReports = labOrders.map((order) => {
-        // Parse results from items
+        // Parse results from items - same source as Lab Dashboard
         const results = order.items.map((item) => {
           let parameterResults: any[] = [];
           try {
@@ -1113,19 +1122,26 @@ router.get(
             value: item.resultValue || '',
             unit: item.unit || '',
             referenceRange: item.referenceRange || '',
-            interpretation: item.interpretation || 'NORMAL',
+            interpretation: (item.interpretation || 'NORMAL').toUpperCase(),
           };
         });
 
+        // Get uploaded report file if available (from LabResult)
+        const labResult = order.results?.[0];
+
         return {
           id: order.id,
+          orderNumber: order.orderNumber,
           date: order.createdAt.toISOString().split('T')[0],
-          testName: order.items[0]?.test?.name || 'Lab Test',
+          testName: order.items.map(i => i.test?.name).filter(Boolean).join(', ') || 'Lab Test',
           category: order.items[0]?.test?.category || 'General',
           doctorName: order.doctor ? `${order.doctor.firstName} ${order.doctor.lastName}` : 'N/A',
+          doctorSpecialty: order.doctor?.specialty || '',
           status: order.status.toUpperCase(),
           results,
           notes: order.notes || '',
+          reportFileUrl: labResult?.fileUrl || null,
+          reportFileType: labResult?.fileType || null,
         };
       });
 
